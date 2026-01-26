@@ -1,1 +1,20 @@
 @import "tailwindcss";
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print\:hidden {
+    display: none !important;
+  }
+  div[class*="max-w-md"], div[class*="max-w-md"] * {
+    visibility: visible;
+  }
+  div[class*="max-w-md"] {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+}

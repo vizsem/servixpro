@@ -1,246 +1,268 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from './lib/supabase'; 
+import { supabase } from './supabaseClient'; 
 import { 
   Smartphone, BarChart3, Package, Users, Store, 
-  Globe, Phone, ShieldCheck, ChevronRight, 
-  LayoutGrid, Search, Zap, Plus, Info, UserCheck, Monitor, LogOut, Key, UserPlus, X, Clock, Trash2
+  LayoutGrid, Search, Zap, Plus, LogOut, Key, 
+  Clock, Trash2, X, ChevronRight, ArrowLeft,
+  CheckCircle2, RefreshCw, Bell
 } from 'lucide-react';
+
+// Import Komponen
+import AddServiceForm from './components/AddServiceForm';
+import StockManagement from './components/StockManagement';
+import FinanceReport from './components/FinanceReport';
+import TrackingServis from './components/TrackingServis';
+import HRDManagement from './components/HRDManagement';
+import StoreKatalog from './components/StoreKatalog';
 
 const App = () => {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeModule, setActiveModule] = useState('dashboard');
+  const [showAuthScreen, setShowAuthScreen] = useState(false);
   const [services, setServices] = useState([]);
-  const [showModal, setShowModal] = useState(false);
-  
-  // State Form
-  const [formData, setFormData] = useState({
-    customer_name: '', unit_name: '', issue: '', estimated_cost: ''
-  });
+  const [stockLogs, setStockLogs] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
 
-  // --- LOGIC AUTH & DATA ---
   useEffect(() => {
+    // Inisialisasi Auth
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if(session) fetchServices(session.user.id);
+      if(session) {
+        fetchAllData(session.user.id);
+      }
       setLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      if(session) fetchServices(session.user.id);
+      if(session) fetchAllData(session.user.id);
+      else {
+        setServices([]);
+        setStockLogs([]);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchServices = async (userId) => {
-    const { data, error } = await supabase
+  // Fungsi ambil semua data terpusat
+  const fetchAllData = async (userId) => {
+    // Ambil Data Servis
+    const { data: sData } = await supabase
       .from('services')
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
-    if (!error) setServices(data);
+    if (sData) setServices(sData);
+
+    // Ambil Data Log Stok Terbaru (untuk sinkronisasi katalog)
+    const { data: lData } = await supabase
+      .from('stock_logs')
+      .select('*, spareparts(name)')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(5);
+    if (lData) setStockLogs(lData);
   };
 
-  const handleAuth = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: window.location.origin }
-      });
-      if (error) throw error;
-    } catch (error) {
-      alert("Terjadi kesalahan: " + error.message);
+  const updateStatus = async (id, currentStatus) => {
+    const statusSequence = ['Pending', 'Checking', 'Working', 'Done'];
+    const nextStatus = statusSequence[statusSequence.indexOf(currentStatus) + 1];
+
+    if (nextStatus) {
+      const { error } = await supabase.from('services').update({ status: nextStatus }).eq('id', id);
+      if (!error) fetchAllData(session.user.id);
     }
   };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setActiveModule('dashboard');
+    setShowAuthScreen(false);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const { error } = await supabase.from('services').insert([
-      { ...formData, user_id: session.user.id, status: 'Pending' }
-    ]);
-    if (!error) {
-      setShowModal(false);
-      setFormData({ customer_name: '', unit_name: '', issue: '', estimated_cost: '' });
-      fetchServices(session.user.id);
-    }
-  };
+  const totalOmzet = services
+    .filter(s => s.status === 'Done')
+    .reduce((acc, curr) => acc + (Number(curr.estimated_cost) || 0), 0);
 
-  const updateStatus = async (id, status) => {
-    const nextStatus = status === 'Pending' ? 'Proses' : 'Selesai';
-    await supabase.from('services').update({ status: nextStatus }).eq('id', id);
-    fetchServices(session.user.id);
-  };
-
-  // Kalkulasi
-  const totalLaba = services.reduce((acc, curr) => acc + (Number(curr.estimated_cost) || 0), 0);
+  const filteredServices = services.filter(s => 
+    s.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    s.unit_name?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const features = [
-    { id: 'servis', icon: <Smartphone className="w-6 h-6" />, title: "Manajemen Layanan Servis", color: "bg-blue-600", items: ["Rekap riwayat servis kendaraan/ponsel", "Pelacakan status servis online via website"] },
-    { id: 'laporan', icon: <BarChart3 className="w-6 h-6" />, title: "Laporan & Administrasi", color: "bg-indigo-600", items: ["Laporan laba/rugi transaksi", "Penjualan spare part & aksesori", "Administrasi kasir & rekap harian"] },
-    { id: 'stok', icon: <Package className="w-6 h-6" />, title: "Manajemen Persediaan", color: "bg-cyan-600", items: ["Stok spare part & aksesori", "Fitur stock reminder (pengingat stok)"] },
-    { id: 'hrd', icon: <Users className="w-6 h-6" />, title: "Manajemen Sumber Daya", color: "bg-violet-600", items: ["Sistem profit share karyawan", "Perhitungan gaji otomatis"] },
-    { id: 'toko', icon: <Store className="w-6 h-6" />, title: "Website Toko", color: "bg-emerald-600", items: ["Store Website (Toko Online)", "Landing page branding marketing"] },
-    { id: 'support', icon: <Globe className="w-6 h-6" />, title: "Akses & Support", color: "bg-amber-600", items: ["Registrasi & login pengguna trial", "Tutorial & dukungan kontak admin"] }
+    { id: 'servis', icon: <Smartphone />, title: "Layanan servis", color: "bg-blue-600", desc: "Kelola antrean unit" },
+    { id: 'stok', icon: <Package />, title: "Stok barang", color: "bg-indigo-600", desc: "Sparepart & inventori" },
+    { id: 'laporan', icon: <BarChart3 />, title: "Laporan keuangan", color: "bg-slate-800", desc: "Analisis laba rugi" },
+    { id: 'hrd', icon: <Users />, title: "Profit share", color: "bg-violet-600", desc: "Gaji & komisi teknisi" },
+    { id: 'tracking', icon: <Search />, title: "Tracking", color: "bg-orange-500", desc: "Cek status pelanggan" },
+    { id: 'toko', icon: <Store />, title: "E-katalog", color: "bg-emerald-600", desc: "Website etalase toko" }
   ];
 
   if (loading) return (
-    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white font-bold tracking-widest gap-4">
-      <Zap className="w-12 h-12 text-blue-400 animate-bounce fill-blue-400" />
-      <p className="animate-pulse text-xs">SINKRONISASI CLOUD...</p>
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center font-sans">
+      <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      <p className="mt-4 text-sm font-bold text-slate-500">Menyinkronkan data...</p>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#F1F5F9] pb-28 lg:pb-10 font-sans text-slate-900 transition-all duration-300">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans selection:bg-blue-100">
       
-      {/* Header Premium */}
-      <div className="bg-[#1E293B] pt-10 md:pt-16 pb-20 md:pb-28 px-6 rounded-b-[40px] md:rounded-b-[60px] shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full -mr-20 -mt-20 blur-3xl opacity-50"></div>
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center relative z-10 gap-6">
-          <div className="text-center md:text-left">
-            <div className="flex items-center gap-2 mb-2 justify-center md:justify-start">
-              <Zap className="w-4 h-4 text-blue-400 fill-blue-400" />
-              <span className="text-blue-400 font-bold tracking-tighter text-[10px] uppercase italic">ServixPro Official</span>
+      {/* Login Screen Overlay */}
+      {!session && showAuthScreen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-white rounded-[2.5rem] p-10 shadow-2xl relative animate-in zoom-in-95">
+            <button onClick={() => setShowAuthScreen(false)} className="absolute top-8 right-8 text-slate-400 hover:text-slate-900"><X size={20}/></button>
+            <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mb-6 mx-auto shadow-lg shadow-blue-200">
+              <Zap className="text-white fill-white" size={32} />
             </div>
-            <h1 className="text-white text-4xl md:text-5xl font-black tracking-tight italic" onClick={() => setActiveModule('dashboard')} style={{cursor:'pointer'}}>ServixPro</h1>
-            {session ? (
-              <div className="flex items-center gap-2 mt-2 justify-center md:justify-start">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-                  <p className="text-slate-400 text-[10px] font-medium uppercase tracking-widest">{session.user.email}</p>
-              </div>
-            ) : <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.2em] mt-2">v4.0 Mode Pengunjung</p>}
-          </div>
-
-          <div className="w-full md:max-w-md flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
-              <input type="text" placeholder="Cari fitur atau cek unit..." className="w-full bg-white/10 border border-white/20 rounded-2xl py-4 pl-12 pr-4 text-white placeholder:text-slate-500 focus:outline-none backdrop-blur-sm focus:bg-white/20 transition-all text-sm" />
-            </div>
-            {session ? (
-                <button onClick={handleLogout} className="bg-rose-500/20 text-rose-400 p-4 rounded-2xl hover:bg-rose-500 hover:text-white transition-all shadow-lg flex items-center justify-center"><LogOut className="w-5 h-5" /></button>
-            ) : (
-                <button onClick={handleAuth} className="bg-blue-600 text-white px-6 py-4 rounded-2xl font-black text-xs hover:bg-blue-500 transition-all shadow-xl shadow-blue-900/40 flex items-center justify-center gap-2"><Key className="w-4 h-4" /> LOGIN</button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <main className="max-w-6xl mx-auto px-5 -mt-10 relative z-20">
-        
-        {/* Banner Statistik / Promo */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-3xl p-6 md:p-10 shadow-xl mb-10 flex flex-col md:flex-row items-center justify-between border border-blue-400/20 gap-6">
-          <div className="text-white text-center md:text-left">
-            <p className="text-[10px] font-bold uppercase tracking-widest opacity-80 mb-1">{session ? "DATABASE CLOUD AKTIF" : "AKSES TERBATAS"}</p>
-            <h3 className="text-2xl font-bold mb-1">{session ? `Laba: Rp ${totalLaba.toLocaleString()}` : "Siap Upgrade Bisnis Anda?"}</h3>
-            <p className="text-sm opacity-90 leading-tight">{session ? `Terdapat ${services.length} unit dalam antrean servis.` : "Daftar sekarang untuk sinkronisasi data HP & Laptop."}</p>
-          </div>
-          <button onClick={() => session ? setShowModal(true) : handleAuth()} className="bg-white text-blue-700 px-8 py-4 rounded-2xl font-black text-sm shadow-lg active:scale-95 hover:bg-slate-50 transition-all flex items-center gap-2">
-            {session ? <Plus className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
-            {session ? "TAMBAH SERVIS" : "DAFTAR SEKARANG"}
-          </button>
-        </div>
-
-        {/* --- MODUL KONTEN --- */}
-        {activeModule === 'servis' && session ? (
-          <div className="mb-10 space-y-4 animate-in fade-in duration-500">
-             <div className="flex items-center justify-between">
-                <h2 className="font-black text-2xl text-slate-800 italic uppercase">Antrean Servis</h2>
-                <button onClick={() => setActiveModule('dashboard')} className="text-xs font-bold text-blue-600 underline">Kembali</button>
-             </div>
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {services.map(s => (
-                  <div key={s.id} className="bg-white p-6 rounded-[30px] border border-slate-200 shadow-sm flex justify-between items-center">
-                    <div>
-                      <h4 className="font-bold text-slate-800">{s.unit_name}</h4>
-                      <p className="text-[10px] text-slate-500 uppercase font-black">{s.customer_name} • {s.status}</p>
-                    </div>
-                    <button onClick={() => updateStatus(s.id, s.status)} className="bg-slate-100 px-4 py-2 rounded-xl text-[9px] font-bold hover:bg-blue-600 hover:text-white transition-all">UPDATE STATUS</button>
-                  </div>
-                ))}
-             </div>
-          </div>
-        ) : (
-          <div className="mb-10">
-            <div className="flex items-center justify-between mb-6 px-1">
-              <h2 className="font-black text-2xl text-slate-800 tracking-tight italic uppercase">Modul Bisnis</h2>
-              <div className="hidden md:flex items-center gap-2 text-slate-400 font-bold text-[10px] uppercase tracking-widest"><Monitor className="w-4 h-4" /> Real-time Sync</div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {features.map((f, i) => (
-                <div key={i} onClick={() => setActiveModule(f.id)} className="bg-white p-6 rounded-[32px] border border-slate-200/60 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all group cursor-pointer">
-                  <div className="flex items-start gap-4">
-                    <div className={`${f.color} p-4 rounded-2xl text-white shadow-lg transform group-hover:rotate-6 transition-transform`}>{f.icon}</div>
-                    <div className="flex-1">
-                      <h3 className="font-bold text-slate-800 text-lg leading-tight mb-3">{f.title}</h3>
-                      <ul className="space-y-2">
-                        {f.items.map((item, idx) => (
-                          <li key={idx} className="text-[12px] text-slate-500 flex items-start gap-2 leading-relaxed">
-                            <div className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-1.5 flex-shrink-0" /> {item}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Footer info tetap ada */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10 pb-10">
-          <div className="bg-slate-900 rounded-[32px] p-8 text-white relative overflow-hidden shadow-xl border border-slate-700">
-            <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-3 text-blue-400"><Globe className="w-6 h-6" /><h3 className="text-xl font-bold italic uppercase tracking-tighter">Partner ServixPro</h3></div>
-              <p className="text-sm text-slate-400 mb-6">Hubungi jaringan distributor RBM Borneo untuk token aktivasi.</p>
-              <button className="w-full bg-slate-800 py-4 rounded-2xl text-xs font-black border border-slate-700 hover:bg-slate-700 transition-all uppercase tracking-widest">Hubungi Admin</button>
-            </div>
-          </div>
-          <div className="bg-white rounded-[32px] p-8 border border-slate-200 flex flex-col justify-center shadow-sm">
-            <div className="flex items-start gap-4 text-slate-500"><Info className="w-6 h-6 text-blue-600 flex-shrink-0" /><p className="text-xs leading-relaxed italic text-justify font-medium">Sistem database terpusat memastikan riwayat servis pelanggan tersimpan aman di cloud.</p></div>
-          </div>
-        </div>
-      </main>
-
-      {/* MODAL INPUT SERVIS */}
-      {showModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-md rounded-[40px] p-8 shadow-2xl relative">
-            <button onClick={() => setShowModal(false)} className="absolute top-6 right-6 text-slate-400"><X /></button>
-            <h2 className="text-xl font-black italic mb-6 uppercase">Input Unit Baru</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <input required placeholder="Nama Pelanggan" className="w-full p-4 bg-slate-100 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-blue-500" onChange={e => setFormData({...formData, customer_name: e.target.value})} />
-              <input required placeholder="Tipe Unit (Contoh: iPhone 13)" className="w-full p-4 bg-slate-100 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-blue-500" onChange={e => setFormData({...formData, unit_name: e.target.value})} />
-              <textarea required placeholder="Kerusakan" className="w-full p-4 bg-slate-100 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-blue-500 h-24" onChange={e => setFormData({...formData, issue: e.target.value})} />
-              <input required type="number" placeholder="Estimasi Biaya" className="w-full p-4 bg-slate-100 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-blue-500" onChange={e => setFormData({...formData, estimated_cost: e.target.value})} />
-              <button type="submit" className="w-full bg-blue-600 text-white p-5 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg shadow-blue-200">Simpan ke Cloud</button>
-            </form>
+            <h2 className="text-2xl font-bold text-center mb-2 tracking-tight text-slate-800">Masuk sistem</h2>
+            <p className="text-center text-slate-400 text-xs font-medium mb-8 leading-relaxed">Gunakan akun Google untuk sinkronisasi data seluruh cabang.</p>
+            <button onClick={() => supabase.auth.signInWithOAuth({ provider: 'google' })} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold text-xs flex items-center justify-center gap-3 hover:bg-slate-800 transition-all">
+              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" className="w-5 h-5 bg-white rounded-full p-0.5"/>
+              Lanjutkan dengan Google
+            </button>
           </div>
         </div>
       )}
 
-      {/* Floating Bottom Navigation */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-slate-200 px-8 py-5 z-50 rounded-t-[30px] shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
-        <div className="max-w-md mx-auto flex justify-between items-center text-slate-400">
-          <button onClick={() => setActiveModule('dashboard')} className={`flex flex-col items-center gap-1 font-bold uppercase text-[9px] ${activeModule === 'dashboard' ? 'text-blue-600' : ''}`}><LayoutGrid className="w-6 h-6" /> Menu</button>
-          <button onClick={() => setActiveModule('servis')} className={`flex flex-col items-center gap-1 font-bold uppercase text-[9px] ${activeModule === 'servis' ? 'text-blue-600' : ''}`}><Clock className="w-6 h-6" /> Antrean</button>
-          <div className="relative -mt-20">
-            <button onClick={() => session ? setShowModal(true) : handleAuth()} className="w-16 h-16 bg-blue-600 rounded-[22px] flex items-center justify-center text-white shadow-2xl shadow-blue-400 border-[6px] border-[#F1F5F9] active:scale-90 transition-all">
-              {session ? <Plus className="w-8 h-8" /> : <Key className="w-8 h-8" />}
-            </button>
-          </div>
-          <button className="flex flex-col items-center gap-1 uppercase text-[9px] font-bold"><Store className="w-6 h-6" /> Toko</button>
-          <button onClick={!session ? handleAuth : handleLogout} className={`flex flex-col items-center gap-1 uppercase text-[9px] font-bold ${session ? 'text-rose-500' : ''}`}>
-            {session ? <LogOut className="w-6 h-6" /> : <Users className="w-6 h-6" />} {session ? 'Logout' : 'Login'}
-          </button>
+      {/* Navigasi Samping / Bawah */}
+      <nav className="fixed z-50 bottom-0 left-0 right-0 bg-white border-t border-slate-100 px-8 py-4 flex justify-between items-center lg:top-0 lg:left-0 lg:bottom-0 lg:w-24 lg:flex-col lg:border-r lg:border-t-0 lg:px-0 lg:py-10 shadow-sm">
+        <div className="hidden lg:flex mb-12 items-center justify-center w-12 h-12 bg-blue-600 rounded-2xl text-white shadow-lg shadow-blue-100"><Zap size={22} fill="currentColor" /></div>
+        <div className="flex justify-between w-full lg:flex-col lg:gap-10 lg:items-center">
+          <button onClick={() => setActiveModule('dashboard')} className={`flex flex-col items-center gap-1.5 ${activeModule === 'dashboard' ? 'text-blue-600' : 'text-slate-300'}`}><LayoutGrid size={24} /><span className="text-[9px] font-bold uppercase tracking-wider">Beranda</span></button>
+          <button onClick={() => session ? setActiveModule('servis') : setShowAuthScreen(true)} className={`flex flex-col items-center gap-1.5 ${activeModule === 'servis' ? 'text-blue-600' : 'text-slate-300'}`}><Clock size={24} /><span className="text-[9px] font-bold uppercase tracking-wider">Antrean</span></button>
+          <button onClick={() => session ? setActiveModule('add-form') : setShowAuthScreen(true)} className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-blue-100 active:scale-95 transition-all -mt-10 lg:mt-0">{session ? <Plus size={30} /> : <Key size={24} />}</button>
+          <button onClick={() => setActiveModule('tracking')} className={`flex flex-col items-center gap-1.5 ${activeModule === 'tracking' ? 'text-blue-600' : 'text-slate-300'}`}><Search size={24} /><span className="text-[9px] font-bold uppercase tracking-wider">Cek</span></button>
+          <button onClick={session ? handleLogout : () => setShowAuthScreen(true)} className="flex flex-col items-center gap-1.5 text-slate-300">{session ? <LogOut size={24} /> : <Users size={24} />}<span className="text-[9px] font-bold uppercase tracking-wider">Akun</span></button>
         </div>
+      </nav>
+
+      <div className="lg:ml-24 transition-all">
+        {/* Header Atas */}
+        <header className="bg-white/80 backdrop-blur-md border-b border-slate-100 px-8 py-6 sticky top-0 z-40">
+          <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+            <div>
+              <h1 className="text-xl font-bold text-slate-900 tracking-tight">ServixPro <span className="text-blue-600 text-[10px] font-black bg-blue-50 px-2 py-1 rounded ml-1">V4.0</span></h1>
+            </div>
+            <div className="w-full md:max-w-md relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
+              <input type="text" placeholder="Cari nota, unit, atau nama pelanggan..." className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 pl-12 pr-4 text-xs font-medium outline-none focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            </div>
+          </div>
+        </header>
+
+        <main className="max-w-6xl mx-auto px-8 py-10 pb-32">
+          {activeModule === 'dashboard' && (
+            <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+              {/* Ringkasan Omzet */}
+              <div className="bg-slate-900 p-10 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-8">
+                <div className="relative z-10">
+                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <BarChart3 size={14} className="text-blue-400"/> Akumulasi pemasukan hari ini
+                  </p>
+                  <h2 className="text-5xl font-black tracking-tighter">Rp {totalOmzet.toLocaleString('id-ID')}</h2>
+                  <div className="flex gap-4 mt-6">
+                    <div className="bg-white/10 px-4 py-2 rounded-xl border border-white/5 text-[10px] font-bold">Total {services.length} Unit</div>
+                    <div className="bg-emerald-500/20 text-emerald-400 px-4 py-2 rounded-xl border border-emerald-500/20 text-[10px] font-bold">Selesai: {services.filter(s => s.status === 'Done').length}</div>
+                  </div>
+                </div>
+                <button onClick={() => session ? setActiveModule('add-form') : setShowAuthScreen(true)} className="relative z-10 bg-blue-600 text-white px-10 py-5 rounded-2xl font-bold text-xs shadow-xl shadow-blue-900/20 active:scale-95 hover:bg-blue-500 transition-all uppercase tracking-widest">
+                  Buat antrean baru
+                </button>
+                <div className="absolute -right-10 -bottom-10 opacity-10 rotate-12"><Zap size={240} fill="white" /></div>
+              </div>
+
+              {/* Grid Menu */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {features.map((f, i) => (
+                  <div key={i} onClick={() => (session || f.id === 'tracking') ? setActiveModule(f.id) : setShowAuthScreen(true)} className="bg-white p-7 rounded-[2rem] border border-slate-100 hover:border-blue-500 transition-all cursor-pointer group shadow-sm hover:shadow-xl hover:shadow-blue-500/5">
+                    <div className={`${f.color} w-14 h-14 rounded-2xl text-white flex items-center justify-center mb-6 shadow-lg shadow-blue-100 transition-transform group-hover:scale-110`}>{f.icon}</div>
+                    <h3 className="font-bold text-slate-800 mb-1">{f.title}</h3>
+                    <p className="text-[11px] font-medium text-slate-400 leading-relaxed">{f.desc}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Log Aktivitas Terakhir (Sinkronisasi Stok) */}
+              <div className="bg-white p-8 rounded-[2rem] border border-slate-100">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                  <Bell size={14} className="text-orange-500"/> Aktivitas operasional terbaru
+                </h3>
+                <div className="space-y-4">
+                  {stockLogs.length > 0 ? stockLogs.map((log, idx) => (
+                    <div key={idx} className="flex items-center justify-between py-3 border-b border-slate-50 last:border-0">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold ${log.type === 'Keluar' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                          {log.type === 'Keluar' ? '-' : '+'}
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-700">{log.spareparts?.name}</p>
+                          <p className="text-[9px] text-slate-400 font-medium">{log.notes || 'Perubahan stok manual'}</p>
+                        </div>
+                      </div>
+                      <p className="text-[10px] font-bold text-slate-300">{new Date(log.created_at).toLocaleTimeString()}</p>
+                    </div>
+                  )) : (
+                    <p className="text-xs text-slate-400 italic text-center py-4">Belum ada riwayat mutasi barang hari ini.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Render Modul Komponen */}
+          {session && activeModule === 'servis' && (
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-bold flex items-center gap-3 text-slate-800 tracking-tight"><Clock size={22} className="text-blue-600"/> Antrean Unit Masuk</h2>
+                <button onClick={() => setActiveModule('dashboard')} className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400"><ArrowLeft size={24}/></button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {filteredServices.map(s => (
+                  <div key={s.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+                    <div className="flex justify-between items-start mb-6">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-lg w-fit uppercase tracking-tighter">Nota #{s.id?.slice(0, 8)}</span>
+                        <h4 className="font-bold text-base text-slate-800">{s.unit_name}</h4>
+                        <p className="text-[10px] text-slate-400 font-medium">Pemilik: <span className="text-slate-600 font-bold">{s.customer_name}</span></p>
+                      </div>
+                      <div className={`px-4 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest ${s.status === 'Done' ? 'bg-emerald-100 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>{s.status}</div>
+                    </div>
+                    
+                    <div className="bg-slate-50 p-4 rounded-2xl mb-6">
+                       <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Keluhan Kerusakan</p>
+                       <p className="text-xs text-slate-600 italic leading-relaxed">"{s.issue}"</p>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2">
+                       <div>
+                          <p className="text-[9px] font-bold text-slate-400 uppercase">Estimasi Biaya</p>
+                          <p className="text-lg font-black text-slate-800">Rp {Number(s.estimated_cost).toLocaleString()}</p>
+                       </div>
+                       <div className="flex gap-2">
+                          <button onClick={() => { if(confirm('Hapus unit ini?')) { supabase.from('services').delete().eq('id', s.id).then(() => fetchAllData(session.user.id)); }}} className="p-3 text-slate-300 hover:text-rose-500 transition-colors"><Trash2 size={20}/></button>
+                          {s.status !== 'Done' && (
+                            <button onClick={() => updateStatus(s.id, s.status)} className="bg-slate-900 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase flex items-center gap-2 hover:bg-blue-600 transition-all shadow-lg shadow-slate-100">Update Status</button>
+                          )}
+                       </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {session && activeModule === 'add-form' && <AddServiceForm onComplete={() => fetchAllData(session.user.id)} onClose={() => setActiveModule('servis')} />}
+          {session && activeModule === 'stok' && <StockManagement />}
+          {session && activeModule === 'laporan' && <FinanceReport />}
+          {session && activeModule === 'hrd' && <HRDManagement />}
+          {session && activeModule === 'toko' && <StoreKatalog />}
+          {activeModule === 'tracking' && <TrackingServis />}
+          
+        </main>
       </div>
     </div>
   );

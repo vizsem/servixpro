@@ -1,0 +1,236 @@
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../supabaseClient';
+import { 
+  TrendingUp, TrendingDown, Wallet, PieChart, 
+  ArrowUpRight, Loader2, Printer, RefreshCw, Package, XCircle
+} from 'lucide-react';
+
+const FinanceReport = () => {
+  const [loading, setLoading] = useState(true);
+  const [dataServis, setDataServis] = useState([]);
+  const [dataStockLogs, setDataStockLogs] = useState([]);
+  const [summary, setSummary] = useState({
+    income: 0,
+    expense: 0,
+    profit: 0
+  });
+
+  useEffect(() => {
+    fetchFinanceData();
+  }, []);
+
+  const fetchFinanceData = async () => {
+    try {
+      setLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      // 1. Ambil Data Pemasukan (Servis Selesai)
+      const { data: services, error: sError } = await supabase
+        .from('services')
+        .select('unit_name, customer_name, estimated_cost, created_at, status')
+        .eq('user_id', session.user.id)
+        .eq('status', 'Done')
+        .order('created_at', { ascending: false });
+
+      if (sError) throw sError;
+
+      // 2. Ambil Data Log Stok Keluar (Modal)
+      // Pastikan relasi spareparts(name, price_buy) sudah benar di database
+     // Ganti bagian query stock_logs dengan ini
+const { data: logs, error: lError } = await supabase
+  .from('stock_logs')
+  .select(`
+    id,
+    quantity,
+    type,
+    created_at,
+    spareparts!inner (
+      name,
+      price_buy
+    )
+  `) // Tambahkan !inner untuk memastikan hanya mengambil log yang punya data sparepart
+  .eq('user_id', session.user.id)
+  .eq('type', 'Keluar')
+  .order('created_at', { ascending: false });
+
+      if (lError) throw lError;
+
+      // 3. Kalkulasi Angka
+      const totalIncome = services.reduce((acc, curr) => acc + (Number(curr.estimated_cost) || 0), 0);
+      
+      const totalExpense = logs.reduce((acc, curr) => {
+        // Cek jika data spareparts ada (mencegah error jika sparepart dihapus)
+        const hargaBeli = curr.spareparts?.price_buy || 0;
+        return acc + (hargaBeli * curr.quantity);
+      }, 0);
+
+      setSummary({
+        income: totalIncome,
+        expense: totalExpense,
+        profit: totalIncome - totalExpense
+      });
+      
+      setDataServis(services || []);
+      setDataStockLogs(logs || []);
+
+    } catch (error) {
+      console.error('Gagal mengambil laporan:', error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePrint = () => window.print();
+
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center p-20 space-y-4">
+      <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+      <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Menyusun Laporan...</p>
+    </div>
+  );
+
+  return (
+    <div className="p-4 max-w-2xl mx-auto space-y-6 pb-24 font-sans">
+      {/* Header */}
+      <div className="flex justify-between items-center px-2 no-print">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Laporan Keuangan</h2>
+          <p className="text-slate-500 text-xs font-medium">Data terpusat jasa dan sparepart</p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={fetchFinanceData} className="p-3 bg-white border border-slate-200 rounded-2xl text-slate-600 hover:bg-slate-50 transition-colors">
+            <RefreshCw size={18} />
+          </button>
+          <button onClick={handlePrint} className="bg-slate-900 text-white px-5 py-3 rounded-2xl font-bold text-xs flex items-center gap-2 hover:bg-slate-800 transition-all">
+            <Printer size={16} /> Cetak
+          </button>
+        </div>
+      </div>
+
+      <div id="printable-area" className="space-y-6">
+        {/* Card Utama */}
+        <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden border border-white/5">
+          <div className="relative z-10">
+            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] mb-2">Estimasi Laba Bersih</p>
+            <h2 className="text-5xl font-black mb-10 tracking-tighter">
+              Rp {summary.profit.toLocaleString('id-ID')}
+            </h2>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-5 rounded-3xl">
+                <div className="flex items-center gap-2 mb-1 text-emerald-400">
+                  <TrendingUp size={14} />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Omzet</span>
+                </div>
+                <p className="text-lg font-bold">Rp {summary.income.toLocaleString('id-ID')}</p>
+              </div>
+              <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-5 rounded-3xl">
+                <div className="flex items-center gap-2 mb-1 text-rose-400">
+                  <TrendingDown size={14} />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Biaya</span>
+                </div>
+                <p className="text-lg font-bold">Rp {summary.expense.toLocaleString('id-ID')}</p>
+              </div>
+            </div>
+          </div>
+          <PieChart className="absolute -bottom-10 -right-10 w-48 h-48 text-white/5 rotate-12" />
+        </div>
+
+        {/* Tabel Sparepart Keluar (Log Modal) */}
+        <div className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
+          <div className="p-6 border-b border-slate-50 bg-rose-50/20 flex justify-between items-center">
+            <div className="flex items-center gap-2">
+               <Package size={18} className="text-rose-500" />
+               <h3 className="font-bold text-slate-800 text-sm">Produk Keluar (Modal)</h3>
+            </div>
+            <span className="text-[10px] font-black text-rose-600 bg-rose-100 px-3 py-1 rounded-full uppercase">Audit Stok</span>
+          </div>
+          
+          <div className="divide-y divide-slate-50">
+            {dataStockLogs.length > 0 ? dataStockLogs.map((log) => (
+              <div key={log.id} className="p-5 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                <div className="flex items-center gap-4">
+                  <div className="h-10 w-10 bg-slate-100 rounded-xl flex items-center justify-center">
+                    <TrendingDown className="text-rose-400 w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-800 leading-none mb-1">
+                      {log.spareparts?.name || "Produk dihapus"}
+                    </p>
+                    <p className="text-[10px] text-slate-400 font-medium">
+                      {new Date(log.created_at).toLocaleDateString('id-ID')} • {log.notes || 'Update Katalog'}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-black text-rose-600">
+                    -Rp {((log.spareparts?.price_buy || 0) * log.quantity).toLocaleString('id-ID')}
+                  </p>
+                  <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">
+                    {log.quantity} Unit x Rp {log.spareparts?.price_buy?.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            )) : (
+              <div className="p-10 text-center space-y-2">
+                <XCircle className="mx-auto text-slate-200" size={32} />
+                <p className="text-xs text-slate-400 italic font-medium">Belum ada data sparepart keluar.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* List Transaksi Jasa */}
+        <div className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
+          <div className="p-6 border-b border-slate-50 bg-slate-50/50">
+            <h3 className="font-bold text-slate-800 text-sm italic">Rincian Pemasukan Jasa</h3>
+          </div>
+          <div className="divide-y divide-slate-50">
+            {dataServis.length > 0 ? dataServis.map((trx, index) => (
+              <div key={index} className="p-5 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="h-10 w-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center font-black text-xs">
+                    {trx.unit_name.substring(0,2).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-800 leading-none mb-1">{trx.unit_name}</p>
+                    <p className="text-[10px] text-slate-400 font-medium italic">Cust: {trx.customer_name}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-black text-slate-800">Rp {Number(trx.estimated_cost).toLocaleString('id-ID')}</p>
+                  <p className="text-[9px] text-emerald-500 font-bold uppercase">Selesai</p>
+                </div>
+              </div>
+            )) : (
+              <p className="p-10 text-center text-xs text-slate-400 font-medium">Tidak ada transaksi jasa.</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Info Box */}
+      <div className="bg-blue-50 border border-blue-100 rounded-3xl p-6 text-blue-700 flex items-start gap-4 no-print">
+        <Wallet className="w-6 h-6 text-blue-400 shrink-0" />
+        <div>
+          <h4 className="text-[10px] font-bold uppercase tracking-widest">Informasi Laba Bersih</h4>
+          <p className="text-[11px] leading-relaxed mt-1 font-medium text-blue-600/80">
+            Laba dihitung dari <strong>Total Omzet Jasa</strong> yang sudah Done, dikurangi <strong>Total Harga Beli</strong> produk yang dikeluarkan melalui sistem Katalog/Stok.
+          </p>
+        </div>
+      </div>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          .no-print { display: none !important; }
+          body { background: white; padding: 0; margin: 0; }
+          #printable-area { width: 100%; max-width: none; }
+          .rounded-[2.5rem], .rounded-[2rem], .rounded-3xl { border-radius: 1rem !important; }
+        }
+      `}} />
+    </div>
+  );
+};
+
+export default FinanceReport;
