@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from './lib/supabase'; // Pastikan file ini sudah dibuat
+import { supabase } from './lib/supabase'; 
 import { 
   Smartphone, BarChart3, Package, Users, Store, 
   Globe, Phone, ShieldCheck, ChevronRight, 
@@ -12,11 +12,13 @@ const App = () => {
 
   // --- LOGIC SUPABASE AUTH ---
   useEffect(() => {
+    // Ambil sesi saat ini
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setLoading(false);
     });
 
+    // Pantau perubahan status auth secara real-time
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
@@ -24,15 +26,30 @@ const App = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const handleLogin = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: window.location.origin }
-    });
+  // Fungsi Login & Daftar (Dibuat lebih kuat untuk Vercel)
+  const handleAuth = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { 
+          // Mendeteksi URL secara otomatis (localhost atau domain vercel)
+          redirectTo: window.location.origin,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'select_account',
+          },
+        }
+      });
+      if (error) throw error;
+    } catch (error) {
+      console.error("Auth Error:", error.message);
+      alert("Terjadi kesalahan: " + error.message);
+    }
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    const { error } = await supabase.signOut();
+    if (error) alert(error.message);
   };
 
   const features = [
@@ -74,7 +91,12 @@ const App = () => {
     }
   ];
 
-  if (loading) return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white font-bold tracking-widest animate-pulse text-sm">LOADING SERVIXPRO...</div>;
+  if (loading) return (
+    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white font-bold tracking-widest gap-4">
+      <Zap className="w-12 h-12 text-blue-400 animate-bounce fill-blue-400" />
+      <p className="animate-pulse text-xs">SINKRONISASI CLOUD...</p>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-[#F1F5F9] pb-28 lg:pb-10 font-sans text-slate-900 transition-all duration-300">
@@ -91,14 +113,13 @@ const App = () => {
             </div>
             <h1 className="text-white text-4xl md:text-5xl font-black tracking-tight italic">ServixPro</h1>
             
-            {/* Tampilan Kondisional User */}
             {session ? (
               <div className="flex items-center gap-2 mt-2 justify-center md:justify-start">
                   <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
                   <p className="text-slate-400 text-[10px] font-medium uppercase tracking-widest">{session.user.email}</p>
               </div>
             ) : (
-              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.2em] mt-2">v4.0 Guest Mode</p>
+              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.2em] mt-2">v4.0 Mode Pengunjung</p>
             )}
           </div>
 
@@ -117,7 +138,7 @@ const App = () => {
                     <LogOut className="w-5 h-5" />
                 </button>
             ) : (
-                <button onClick={handleLogin} className="bg-blue-600 text-white px-6 py-4 rounded-2xl font-black text-xs hover:bg-blue-500 transition-all shadow-xl shadow-blue-900/40 flex items-center justify-center gap-2">
+                <button onClick={handleAuth} className="bg-blue-600 text-white px-6 py-4 rounded-2xl font-black text-xs hover:bg-blue-500 transition-all shadow-xl shadow-blue-900/40 flex items-center justify-center gap-2">
                     <Key className="w-4 h-4" /> LOGIN
                 </button>
             )}
@@ -131,25 +152,25 @@ const App = () => {
         <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-3xl p-6 md:p-10 shadow-xl mb-10 flex flex-col md:flex-row items-center justify-between border border-blue-400/20 gap-6">
           <div className="text-white text-center md:text-left">
             <p className="text-[10px] font-bold uppercase tracking-widest opacity-80 mb-1">
-                {session ? "Status Lisensi: Aktif" : "Selamat Datang di ServixPro"}
+                {session ? "Lisensi: Aktif Premium" : "Akses Database Cloud"}
             </p>
             <h3 className="text-2xl font-bold mb-1">
-                {session ? `Halo, ${session.user.user_metadata.full_name || 'Owner'}` : "Ingin Kelola Bisnis Servis?"}
+                {session ? `Selamat Datang, ${session.user.user_metadata.full_name || 'User'}` : "Siap Upgrade Bisnis Anda?"}
             </h3>
             <p className="text-sm opacity-90 leading-tight">
-                {session ? "Database Anda tersinkronisasi secara real-time." : "Dapatkan akses penuh manajemen servix dengan mendaftar gratis."}
+                {session ? "Kelola semua data servis dalam satu genggaman." : "Daftar sekarang untuk sinkronisasi data HP & Laptop secara otomatis."}
             </p>
           </div>
           
           {!session ? (
-              <button onClick={handleLogin} className="bg-white text-blue-700 px-8 py-4 rounded-2xl font-black text-sm shadow-lg active:scale-95 hover:bg-slate-50 transition-all flex items-center gap-2 whitespace-nowrap">
+              <button onClick={handleAuth} className="bg-white text-blue-700 px-8 py-4 rounded-2xl font-black text-sm shadow-lg active:scale-95 hover:bg-slate-50 transition-all flex items-center gap-2 whitespace-nowrap">
                 <UserPlus className="w-5 h-5" />
                 DAFTAR SEKARANG
               </button>
           ) : (
-              <button className="bg-white text-blue-700 px-8 py-4 rounded-2xl font-black text-sm shadow-lg active:scale-90 hover:bg-slate-50 transition-all flex items-center gap-2">
+              <button className="bg-white text-blue-700 px-8 py-4 rounded-2xl font-black text-sm shadow-lg active:scale-90 hover:bg-slate-50 transition-all flex items-center gap-2 uppercase">
                 <BarChart3 className="w-5 h-5" />
-                CEK LAPORAN
+                Dashboard Admin
               </button>
           )}
         </div>
@@ -159,7 +180,7 @@ const App = () => {
           <div className="flex items-center justify-between mb-6 px-1">
             <h2 className="font-black text-2xl text-slate-800 tracking-tight italic uppercase">Modul Bisnis</h2>
             <div className="hidden md:flex items-center gap-2 text-slate-400 font-bold text-[10px] uppercase tracking-widest">
-                <Monitor className="w-4 h-4" /> Multi-Device Cloud Ready
+                <Monitor className="w-4 h-4" /> Real-time Sync
             </div>
           </div>
 
@@ -193,9 +214,9 @@ const App = () => {
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-3 text-blue-400">
                 <Globe className="w-6 h-6" />
-                <h3 className="text-xl font-bold italic">Partner ServixPro</h3>
+                <h3 className="text-xl font-bold italic uppercase tracking-tighter">Partner ServixPro</h3>
               </div>
-              <p className="text-sm text-slate-400 mb-6">Butuh aktivasi atau bantuan teknis? Hubungi jaringan distributor resmi kami.</p>
+              <p className="text-sm text-slate-400 mb-6">Hubungi jaringan distributor RBM Borneo untuk mendapatkan token aktivasi akun Anda.</p>
               <button className="w-full bg-slate-800 py-4 rounded-2xl text-xs font-black border border-slate-700 hover:bg-slate-700 transition-all uppercase tracking-widest">
                 Hubungi Admin
               </button>
@@ -204,8 +225,8 @@ const App = () => {
           <div className="bg-white rounded-[32px] p-8 border border-slate-200 flex flex-col justify-center shadow-sm">
             <div className="flex items-start gap-4 text-slate-500">
               <Info className="w-6 h-6 text-blue-600 flex-shrink-0" />
-              <p className="text-xs leading-relaxed italic text-justify">
-                <strong>ServixPro</strong> adalah sistem database terpusat yang memastikan data teknisi tetap aman walau perangkat hilang. Login sekarang untuk sinkronisasi cloud otomatis.
+              <p className="text-xs leading-relaxed italic text-justify font-medium">
+                Sistem database terpusat memastikan riwayat servis pelanggan tetap tersimpan aman selamanya di server cloud kami.
               </p>
             </div>
           </div>
@@ -218,13 +239,13 @@ const App = () => {
           <button className="flex flex-col items-center gap-1 text-blue-600 font-bold uppercase text-[9px]">
             <LayoutGrid className="w-6 h-6" /> Menu
           </button>
-          <button onClick={!session ? handleLogin : () => {}} className="flex flex-col items-center gap-1 uppercase text-[9px] font-bold">
+          <button onClick={!session ? handleAuth : () => {}} className="flex flex-col items-center gap-1 uppercase text-[9px] font-bold">
             <Phone className="w-6 h-6" /> Admin
           </button>
           
           <div className="relative -mt-20">
             <button 
-                onClick={!session ? handleLogin : () => {}}
+                onClick={!session ? handleAuth : () => {}}
                 className="w-16 h-16 bg-blue-600 rounded-[22px] flex items-center justify-center text-white shadow-2xl shadow-blue-400 border-[6px] border-[#F1F5F9] active:scale-90 transition-all"
             >
               {!session ? <Key className="w-8 h-8" /> : <Plus className="w-8 h-8" />}
@@ -234,7 +255,7 @@ const App = () => {
           <button className="flex flex-col items-center gap-1 uppercase text-[9px] font-bold">
             <Store className="w-6 h-6" /> Toko
           </button>
-          <button onClick={!session ? handleLogin : handleLogout} className={`flex flex-col items-center gap-1 uppercase text-[9px] font-bold ${session ? 'text-rose-500' : ''}`}>
+          <button onClick={!session ? handleAuth : handleLogout} className={`flex flex-col items-center gap-1 uppercase text-[9px] font-bold ${session ? 'text-rose-500' : ''}`}>
             {session ? <LogOut className="w-6 h-6" /> : <Users className="w-6 h-6" />}
             {session ? 'Logout' : 'Login'}
           </button>
