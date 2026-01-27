@@ -24,31 +24,61 @@ const App = () => {
   const [stockLogs, setStockLogs] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // --- STATE BARU UNTUK TRIAL & SUBSCRIPTION ---
+  const [profile, setProfile] = useState(null);
+  const [isExpired, setIsExpired] = useState(false);
+
   useEffect(() => {
     // Inisialisasi Auth
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if(session) {
         fetchAllData(session.user.id);
+        fetchUserProfile(session.user.id); // Cek masa aktif trial
       }
       setLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      if(session) fetchAllData(session.user.id);
-      else {
+      if(session) {
+        fetchAllData(session.user.id);
+        fetchUserProfile(session.user.id);
+      } else {
         setServices([]);
         setStockLogs([]);
+        setProfile(null);
+        setIsExpired(false);
       }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
+  // Fungsi ambil profil untuk cek trial
+  const fetchUserProfile = async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (data) {
+        setProfile(data);
+        const expiryDate = new Date(data.subscription_ends_at);
+        const now = new Date();
+        if (now > expiryDate) {
+          setIsExpired(true);
+        }
+      }
+    } catch (err) {
+      console.error("Trial check error:", err);
+    }
+  };
+
   // Fungsi ambil semua data terpusat
   const fetchAllData = async (userId) => {
-    // Ambil Data Servis
     const { data: sData } = await supabase
       .from('services')
       .select('*')
@@ -56,7 +86,6 @@ const App = () => {
       .order('created_at', { ascending: false });
     if (sData) setServices(sData);
 
-    // Ambil Data Log Stok Terbaru (untuk sinkronisasi katalog)
     const { data: lData } = await supabase
       .from('stock_logs')
       .select('*, spareparts(name)')
@@ -107,6 +136,36 @@ const App = () => {
     </div>
   );
 
+  // --- LAYAR PROTEKSI JIKA TRIAL HABIS ---
+  if (session && isExpired) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6 text-center font-sans">
+        <div className="w-full max-w-sm bg-white p-10 rounded-[2.5rem] shadow-2xl animate-in zoom-in-95">
+          <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <Clock size={32} />
+          </div>
+          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Masa Trial Habis</h2>
+          <p className="text-slate-500 text-xs font-medium mt-3 leading-relaxed">
+            Masa percobaan 14 hari Anda telah berakhir. Silakan upgrade ke paket tahunan untuk terus menggunakan ServixPro.
+          </p>
+          <div className="mt-8 p-6 bg-blue-50 rounded-2xl border border-blue-100">
+            <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">Paket Pro Tahunan</p>
+            <p className="text-2xl font-black text-slate-800 tracking-tighter">Rp 1.200.000<span className="text-xs text-slate-400 font-medium">/12 bln</span></p>
+          </div>
+          <button 
+            onClick={() => window.open('https://wa.me/628123456789?text=Halo Admin, saya ingin upgrade ServixPro ke paket Tahunan', '_blank')}
+            className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold mt-6 shadow-lg shadow-blue-100 active:scale-95 transition-all text-xs uppercase tracking-widest"
+          >
+            Hubungi Admin / Upgrade
+          </button>
+          <button onClick={handleLogout} className="mt-6 text-slate-400 text-[10px] font-bold uppercase tracking-widest hover:text-slate-600 transition-colors">
+            Keluar Akun
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans selection:bg-blue-100">
       
@@ -120,7 +179,7 @@ const App = () => {
             </div>
             <h2 className="text-2xl font-bold text-center mb-2 tracking-tight text-slate-800">Masuk sistem</h2>
             <p className="text-center text-slate-400 text-xs font-medium mb-8 leading-relaxed">Gunakan akun Google untuk sinkronisasi data seluruh cabang.</p>
-            <button onClick={() => supabase.auth.signInWithOAuth({ provider: 'google' })} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold text-xs flex items-center justify-center gap-3 hover:bg-slate-800 transition-all">
+            <button onClick={() => supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } })} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold text-xs flex items-center justify-center gap-3 hover:bg-slate-800 transition-all">
               <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" className="w-5 h-5 bg-white rounded-full p-0.5"/>
               Lanjutkan dengan Google
             </button>
@@ -167,6 +226,11 @@ const App = () => {
                   <div className="flex gap-4 mt-6">
                     <div className="bg-white/10 px-4 py-2 rounded-xl border border-white/5 text-[10px] font-bold">Total {services.length} Unit</div>
                     <div className="bg-emerald-500/20 text-emerald-400 px-4 py-2 rounded-xl border border-emerald-500/20 text-[10px] font-bold">Selesai: {services.filter(s => s.status === 'Done').length}</div>
+                    {profile && (
+                      <div className="bg-amber-500/20 text-amber-400 px-4 py-2 rounded-xl border border-amber-500/20 text-[10px] font-bold">
+                        {isExpired ? 'Trial Habis' : `Trial: ${Math.ceil((new Date(profile.subscription_ends_at) - new Date()) / (1000 * 60 * 60 * 24))} Hari lagi`}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <button onClick={() => session ? setActiveModule('add-form') : setShowAuthScreen(true)} className="relative z-10 bg-blue-600 text-white px-10 py-5 rounded-2xl font-bold text-xs shadow-xl shadow-blue-900/20 active:scale-95 hover:bg-blue-500 transition-all uppercase tracking-widest">
@@ -186,7 +250,7 @@ const App = () => {
                 ))}
               </div>
 
-              {/* Log Aktivitas Terakhir (Sinkronisasi Stok) */}
+              {/* Log Aktivitas Terakhir */}
               <div className="bg-white p-8 rounded-[2rem] border border-slate-100">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
                   <Bell size={14} className="text-orange-500"/> Aktivitas operasional terbaru
