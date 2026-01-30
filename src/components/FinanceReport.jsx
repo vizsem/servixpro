@@ -20,10 +20,6 @@ const FinanceReport = () => {
     end: new Date().toISOString().split('T')[0]
   });
 
-  useEffect(() => {
-    fetchFinanceData();
-  }, [dateRange, fetchFinanceData]);
-
   const fetchFinanceData = React.useCallback(async () => {
     try {
       setLoading(true);
@@ -90,6 +86,10 @@ const FinanceReport = () => {
       setLoading(false);
     }
   }, [dateRange]);
+
+  useEffect(() => {
+    fetchFinanceData();
+  }, [dateRange, fetchFinanceData]);
 
   const handlePrint = () => window.print();
 

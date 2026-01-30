@@ -31,12 +31,14 @@ const App = () => {
   const [lowStockItems, setLowStockItems] = useState([]);
   const [showPartPicker, setShowPartPicker] = useState(null); // Service ID for which we are picking parts
   const [inventory, setInventory] = useState([]);
+  const [pickerSearch, setPickerSearch] = useState('');
 
   // Fungsi ambil semua data terpusat
   const fetchAllData = React.useCallback(async (userId) => {
     if (!userId) return;
 
     try {
+      // 1. Ambil data utama: services, logs, low stock, dan inventory
       const [
         { data: sData },
         { data: lData },
@@ -44,12 +46,13 @@ const App = () => {
         { data: invData }
       ] = await Promise.all([
         supabase.from('services').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-        supabase.from('stock_logs').select('*, spareparts(name)').eq('user_id', userId).order('created_at', { ascending: false }).limit(5),
-        supabase.from('location_inventory').select('*, spareparts(name)').lt('quantity', 5).limit(3),
-        supabase.from('location_inventory').select('*, spareparts(*), locations(*)')
+        supabase.from('stock_logs').select('*, spareparts(name)').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabase.from('location_inventory').select('*, spareparts!inner(name, user_id)').eq('spareparts.user_id', userId).lt('quantity', 5).limit(5),
+        supabase.from('location_inventory').select('*, spareparts!inner(*), locations(*)').eq('spareparts.user_id', userId)
       ]);
 
       if (sData) setServices(sData);
+      // Simpan log tanpa limit agar bisa di-filter per unit di UI
       if (lData) setStockLogs(lData);
       if (lowStockData) setLowStockItems(lowStockData.map(i => ({ name: i.spareparts?.name, quantity: i.quantity })));
       if (invData) setInventory(invData);
@@ -245,7 +248,7 @@ const App = () => {
                     <Bell size={14} className="text-orange-500" /> Aktivitas operasional
                   </h3>
                   <div className="space-y-4">
-                    {stockLogs.length > 0 ? stockLogs.map((log, idx) => (
+                    {stockLogs.length > 0 ? stockLogs.slice(0, 5).map((log, idx) => (
                       <div key={idx} className="flex items-center justify-between py-3 border-b border-slate-50 last:border-0">
                         <div className="flex items-center gap-4">
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold ${log.type === 'Keluar' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
@@ -281,7 +284,9 @@ const App = () => {
                         <button onClick={() => setActiveModule('stok')} className="text-[9px] font-bold text-rose-500 uppercase hover:underline">Restock</button>
                       </div>
                     )) : (
-                      <p className="text-xs text-rose-400 italic text-center py-4">Stok inventori masih aman.</p>
+                      <div className="py-6 text-center">
+                        <p className="text-xs text-rose-400 italic font-medium">Stok inventori masih aman.</p>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -383,64 +388,76 @@ const App = () => {
                 <div className="w-full max-w-md bg-white rounded-[2.5rem] p-10 shadow-2xl relative animate-in zoom-in-95">
                   <button onClick={() => setShowPartPicker(null)} className="absolute top-8 right-8 text-slate-400 hover:text-slate-900"><X size={20} /></button>
                   <h2 className="text-2xl font-bold mb-8 tracking-tight text-slate-800">Pilih Sparepart</h2>
-                  <div className="space-y-6 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                  <div className="relative mb-6">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
+                    <input
+                      type="text"
+                      placeholder="Cari nama sparepart..."
+                      value={pickerSearch}
+                      onChange={(e) => setPickerSearch(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3.5 pl-12 pr-4 text-xs font-bold outline-none focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all"
+                    />
+                  </div>
+                  <div className="space-y-6 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                     {/* Group inventory by part name to show locations together */}
-                    {Object.entries(inventory.reduce((acc, curr) => {
-                      const name = curr.spareparts.name;
-                      if (!acc[name]) acc[name] = [];
-                      acc[name].push(curr);
-                      return acc;
-                    }, {})).map(([partName, variants]) => (
-                      <div key={partName} className="bg-slate-50/50 rounded-3xl p-6 border border-slate-100">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">{partName}</p>
-                        <div className="space-y-2">
-                          {variants.map((item) => (
-                            <button
-                              key={item.product_id + item.location_id}
-                              disabled={item.quantity <= 0}
-                              onClick={async () => {
-                                const { data: { session: currentSession } } = await supabase.auth.getSession();
-                                // 1. Kurangi Stok di Cabang Terpilih
-                                const { error: invErr } = await supabase.from('location_inventory').update({ quantity: item.quantity - 1 }).eq('product_id', item.product_id).eq('location_id', item.location_id);
-                                if (invErr) return alert(invErr.message);
+                    {Object.entries(inventory
+                      .filter(item => item.spareparts?.name?.toLowerCase().includes(pickerSearch.toLowerCase()))
+                      .reduce((acc, curr) => {
+                        const name = curr.spareparts.name;
+                        if (!acc[name]) acc[name] = [];
+                        acc[name].push(curr);
+                        return acc;
+                      }, {})).map(([partName, variants]) => (
+                        <div key={partName} className="bg-slate-50/50 rounded-3xl p-6 border border-slate-100">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">{partName}</p>
+                          <div className="space-y-2">
+                            {variants.map((item) => (
+                              <button
+                                key={item.product_id + item.location_id}
+                                disabled={item.quantity <= 0}
+                                onClick={async () => {
+                                  const { data: { session: currentSession } } = await supabase.auth.getSession();
+                                  // 1. Kurangi Stok di Cabang Terpilih
+                                  const { error: invErr } = await supabase.from('location_inventory').update({ quantity: item.quantity - 1 }).eq('product_id', item.product_id).eq('location_id', item.location_id);
+                                  if (invErr) return alert(invErr.message);
 
-                                // 2. Catat Log dengan Cabang asal
-                                await supabase.from('stock_logs').insert([{
-                                  user_id: currentSession.user.id,
-                                  product_id: item.product_id,
-                                  location_id: item.location_id,
-                                  type: 'Keluar',
-                                  quantity: 1,
-                                  price_at_transaction: item.spareparts.price_sell,
-                                  reference_invoice: showPartPicker.id,
-                                  notes: `[TRANSFER] ${item.locations?.name || 'Cabang'} -> Servis: ${showPartPicker.unit_name}`
-                                }]);
+                                  // 2. Catat Log dengan Cabang asal
+                                  await supabase.from('stock_logs').insert([{
+                                    user_id: currentSession.user.id,
+                                    product_id: item.product_id,
+                                    location_id: item.location_id,
+                                    type: 'Keluar',
+                                    quantity: 1,
+                                    price_at_transaction: item.spareparts.price_sell,
+                                    reference_invoice: showPartPicker.id,
+                                    notes: `[TRANSFER] ${item.locations?.name || 'Cabang'} -> Servis: ${showPartPicker.unit_name}`
+                                  }]);
 
-                                // 3. Update Biaya Servis
-                                const newCost = Number(showPartPicker.estimated_cost) + Number(item.spareparts.price_sell);
-                                await supabase.from('services').update({ estimated_cost: newCost }).eq('id', showPartPicker.id);
+                                  // 3. Update Biaya Servis
+                                  const newCost = Number(showPartPicker.estimated_cost) + Number(item.spareparts.price_sell);
+                                  await supabase.from('services').update({ estimated_cost: newCost }).eq('id', showPartPicker.id);
 
-                                setShowPartPicker(null);
-                                fetchAllData(currentSession.user.id);
-                              }}
-                              className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all border-2 ${item.quantity > 0 ? 'bg-white border-transparent hover:border-blue-500 hover:shadow-lg' : 'bg-slate-100 border-transparent opacity-50 cursor-not-allowed'}`}
-                            >
-                              <div className="text-left">
-                                <p className="text-[10px] font-black text-slate-800 flex items-center gap-2">
-                                  <MapPin size={10} className="text-blue-500" />
-                                  {item.locations?.name || 'Toko Utama'}
-                                </p>
-                                <p className="text-[9px] text-slate-400 font-bold mt-1">Tersedia: {item.quantity} Unit</p>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-xs font-black text-blue-600">Rp {item.spareparts.price_sell.toLocaleString()}</p>
-                                {item.quantity > 0 && <p className="text-[8px] font-black text-blue-400 uppercase tracking-tighter mt-1">Ambil</p>}
-                              </div>
-                            </button>
-                          ))}
+                                  setShowPartPicker(null);
+                                  fetchAllData(currentSession.user.id);
+                                }}
+                                className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all border-2 ${item.quantity > 0 ? 'bg-white border-transparent hover:border-blue-500 hover:shadow-lg' : 'bg-slate-100 border-transparent opacity-50 cursor-not-allowed'}`}
+                              >
+                                <div className="text-left">
+                                  <p className="text-[10px] font-black text-slate-800 flex items-center gap-2">
+                                    <MapPin size={10} className="text-blue-500" />
+                                    {item.locations?.name || 'Toko Utama'}
+                                  </p>
+                                  <p className="text-[9px] text-slate-400 font-bold mt-1">Tersedia: {item.quantity} Unit</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-xs font-black text-blue-600">Rp {item.spareparts.price_sell.toLocaleString()}</p>
+                                  {item.quantity > 0 && <p className="text-[8px] font-black text-blue-400 uppercase tracking-tighter mt-1">Ambil</p>}
+                                </div>
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
                     {inventory.length === 0 && (
                       <p className="text-center py-10 text-xs text-slate-400 italic">Data inventori belum tersedia.</p>
                     )}

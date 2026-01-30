@@ -25,8 +25,29 @@ const StockManagement = () => {
   const isGudangPusat = selectedLocation?.type === 'Gudang' || selectedLocation?.name.toLowerCase().includes('pusat');
 
   const fetchPartsByLocation = React.useCallback(async (locId) => {
-    const { data } = await supabase.from('location_inventory').select(`quantity, product_id, spareparts (*)`).eq('location_id', locId);
-    setParts(data ? data.map(i => ({ ...i.spareparts, stock_at_location: i.quantity })) : []);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      // Ambil Semua Produk di Katalog & Inventory di Lokasi ini secara paralel
+      const [allPartsRes, localInvRes] = await Promise.all([
+        supabase.from('spareparts').select('*').eq('user_id', session.user.id).order('name'),
+        supabase.from('location_inventory').select('*').eq('location_id', locId)
+      ]);
+
+      if (allPartsRes.data) {
+        const merged = allPartsRes.data.map(part => {
+          const invEntry = localInvRes.data?.find(i => i.product_id === part.id);
+          return {
+            ...part,
+            stock_at_location: invEntry ? invEntry.quantity : 0
+          };
+        });
+        setParts(merged);
+      }
+    } catch (err) {
+      console.error("Gagal sinkronisasi stok:", err.message);
+    }
   }, []);
 
   const fetchStockLogs = React.useCallback(async (userId) => {

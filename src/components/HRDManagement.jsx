@@ -8,18 +8,18 @@ import {
 
 const HRDManagement = () => {
   const [services, setServices] = useState([]);
+  const [techPercent, setTechPercent] = useState(0.30); // Default 30%
   const [stats, setStats] = useState({
     totalProfit: 0,
     techShare: 0,
     ownerShare: 0
   });
   const [techBreakdown, setTechBreakdown] = useState({});
+  const [updating, setUpdating] = useState(false);
 
-  const TECH_PERCENT = 0.30; // 30% jatah teknisi
-
-  const calculateShares = React.useCallback((data) => {
+  const calculateShares = React.useCallback((data, percent) => {
     const total = data.reduce((acc, curr) => acc + (Number(curr.estimated_cost) || 0), 0);
-    const tech = total * TECH_PERCENT;
+    const tech = total * percent;
     setStats({
       totalProfit: total,
       techShare: tech,
@@ -30,30 +30,81 @@ const HRDManagement = () => {
     const breakdown = data.reduce((acc, curr) => {
       const name = curr.technician_name || 'Umum';
       if (!acc[name]) acc[name] = 0;
-      acc[name] += (Number(curr.estimated_cost) * TECH_PERCENT);
+      acc[name] += (Number(curr.estimated_cost) * percent);
       return acc;
     }, {});
     setTechBreakdown(breakdown);
-  }, [TECH_PERCENT]);
+  }, []);
 
-  const fetchCommissionData = React.useCallback(async () => {
+  const fetchCommissionData = React.useCallback(async (percent) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
     // SINKRONISASI: Menggunakan 'Done' sesuai dengan App.jsx
     const { data, error } = await supabase
       .from('services')
       .select('*')
+      .eq('user_id', session.user.id)
       .eq('status', 'Done')
       .eq('commission_status', 'Unpaid');
 
     if (!error && data) {
       setServices(data);
-      calculateShares(data);
+      calculateShares(data, percent);
     }
   }, [calculateShares]);
 
+  const fetchSettings = React.useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    const { data } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('user_id', session.user.id)
+      .eq('key', 'tech_percent')
+      .single();
+
+    if (data?.value) {
+      const p = parseInt(data.value) / 100;
+      setTechPercent(p);
+      fetchCommissionData(p);
+    } else {
+      fetchCommissionData(techPercent);
+    }
+  }, [fetchCommissionData, techPercent]);
+
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchCommissionData();
-  }, [fetchCommissionData]);
+    fetchSettings();
+  }, [fetchSettings]);
+
+  const updateTechPercent = async () => {
+    const newVal = prompt("Masukkan persentase jatah teknisi (0-100):", techPercent * 100);
+    if (newVal === null) return;
+
+    const pInt = parseInt(newVal);
+    if (isNaN(pInt) || pInt < 0 || pInt > 100) return alert("Persentase tidak valid!");
+
+    setUpdating(true);
+    const { data: { session } } = await supabase.auth.getSession();
+
+    const { error } = await supabase
+      .from('settings')
+      .upsert({
+        user_id: session.user.id,
+        key: 'tech_percent',
+        value: pInt.toString()
+      }, { onConflict: 'user_id, key' });
+
+    if (!error) {
+      const newPercent = pInt / 100;
+      setTechPercent(newPercent);
+      calculateShares(services, newPercent);
+    } else {
+      alert("Gagal menyimpan pengaturan: " + error.message);
+    }
+    setUpdating(false);
+  };
 
   const handlePayout = async () => {
     if (services.length === 0) return alert("Tidak ada saldo jatah teknisi untuk ditarik.");
@@ -110,12 +161,21 @@ const HRDManagement = () => {
           <h3 className="text-2xl font-black">Rp {stats.totalProfit.toLocaleString('id-ID')}</h3>
         </div>
 
-        <div className="bg-violet-50 p-6 rounded-3xl border border-violet-100 flex flex-col justify-center">
+        <div className="bg-violet-50 p-6 rounded-3xl border border-violet-100 flex flex-col justify-center relative group">
           <div className="flex items-center gap-2 text-violet-600 mb-1">
             <Calculator className="w-4 h-4" />
             <p className="text-[10px] font-bold uppercase">Skema Bagi Hasil</p>
           </div>
-          <p className="text-sm font-bold text-violet-800 italic uppercase">Teknisi: {TECH_PERCENT * 100}% | Owner: {(1 - TECH_PERCENT) * 100}%</p>
+          <p className="text-sm font-bold text-violet-800 italic uppercase">
+            Teknisi: {Math.round(techPercent * 100)}% | Owner: {Math.round((1 - techPercent) * 100)}%
+          </p>
+          <button
+            disabled={updating}
+            onClick={updateTechPercent}
+            className="absolute top-4 right-4 text-[9px] font-black text-violet-400 uppercase hover:text-violet-600 underline opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            {updating ? 'Saving...' : 'Ubah Skema'}
+          </button>
         </div>
       </div>
 
@@ -143,7 +203,7 @@ const HRDManagement = () => {
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase">Unit servis</th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase">Teknisi</th>
                 <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase">Biaya total</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase">Jatah teknisi (30%)</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase">Jatah teknisi ({Math.round(techPercent * 100)}%)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -161,7 +221,7 @@ const HRDManagement = () => {
                   </td>
                   <td className="px-6 py-4">
                     <span className="text-emerald-600 text-sm font-bold">
-                      Rp {(item.estimated_cost * TECH_PERCENT).toLocaleString('id-ID')}
+                      Rp {(item.estimated_cost * techPercent).toLocaleString('id-ID')}
                     </span>
                   </td>
                 </tr>

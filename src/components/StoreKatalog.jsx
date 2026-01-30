@@ -12,9 +12,13 @@ const StoreKatalog = () => {
   const [loading, setLoading] = useState(true);
   const [isEditingPrice, setIsEditingPrice] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showAddLocationModal, setShowAddLocationModal] = useState(false);
   const [editedPrices, setEditedPrices] = useState({});
   const [newProduct, setNewProduct] = useState({
     name: '', price_buy: '', price_sell: '', category: 'Sparepart'
+  });
+  const [newLocation, setNewLocation] = useState({
+    name: '', type: 'Toko'
   });
 
   useEffect(() => {
@@ -64,6 +68,23 @@ const StoreKatalog = () => {
       fetchStoreData();
     } else {
       alert("Gagal tambah produk: " + error.message);
+    }
+  };
+
+  const handleAddLocation = async (e) => {
+    e.preventDefault();
+    const { data: { session } } = await supabase.auth.getSession();
+    const { error } = await supabase.from('locations').insert([{
+      ...newLocation,
+      user_id: session.user.id
+    }]);
+
+    if (!error) {
+      setShowAddLocationModal(false);
+      setNewLocation({ name: '', type: 'Toko' });
+      fetchStoreData();
+    } else {
+      alert("Gagal tambah cabang: " + error.message);
     }
   };
 
@@ -154,6 +175,9 @@ const StoreKatalog = () => {
             <FileUp size={14} className="text-blue-600" /> Import Masal
             <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
           </label>
+          <button onClick={() => setShowAddLocationModal(true)} className="bg-blue-600 text-white px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 shadow-lg shadow-blue-100 hover:bg-blue-500 transition-all">
+            <Plus size={14} /> Tambah Cabang
+          </button>
           <button onClick={() => setShowAddModal(true)} className="bg-slate-900 text-white px-4 py-2.5 rounded-xl font-medium text-xs flex items-center gap-2">
             <Plus size={14} /> Tambah Produk
           </button>
@@ -223,6 +247,32 @@ const StoreKatalog = () => {
           </table>
         </div>
       </div>
+
+      {/* Modal Tambah Cabang */}
+      {showAddLocationModal && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <form onSubmit={handleAddLocation} className="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl animate-in zoom-in-95">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><MapPin size={20} className="text-blue-600" /> Tambah Cabang Baru</h3>
+              <button type="button" onClick={() => setShowAddLocationModal(false)} className="text-slate-400 hover:text-slate-600"><X /></button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Nama Cabang / Toko</label>
+                <input required placeholder="Contoh: Toko Pusat / Cabang Bekasi" className="w-full bg-slate-50 p-4 rounded-xl outline-none border border-transparent focus:border-blue-500 transition-all text-sm font-bold" value={newLocation.name} onChange={e => setNewLocation({ ...newLocation, name: e.target.value })} />
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Tipe Lokasi</label>
+                <select className="w-full bg-slate-50 p-4 rounded-xl outline-none text-sm font-bold" value={newLocation.type} onChange={e => setNewLocation({ ...newLocation, type: e.target.value })}>
+                  <option value="Toko">Toko (Cabang)</option>
+                  <option value="Gudang">Gudang (Penerimaan Stok)</option>
+                </select>
+              </div>
+            </div>
+            <button className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold mt-6 shadow-lg shadow-blue-100 active:scale-95 transition-all uppercase text-[10px] tracking-widest">Daftarkan Cabang</button>
+          </form>
+        </div>
+      )}
 
       {/* Modal Tambah Satuan */}
       {showAddModal && (
