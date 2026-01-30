@@ -315,6 +315,12 @@ const App = () => {
                       <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Keluhan Kerusakan</p>
                       <p className="text-xs text-slate-600 italic leading-relaxed">"{s.issue}"</p>
 
+                      {/* Customer & IMEI/SN Info */}
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed mt-4">
+                        {s.customer_name} • {s.customer_phone}
+                        {s.imei_sn && <span className="block text-blue-500 italic mt-0.5">SN/IMEI: {s.imei_sn}</span>}
+                      </p>
+
                       {/* Spareparts Section */}
                       <div className="mt-6 border-t border-slate-50 pt-6">
                         <div className="flex justify-between items-center mb-4">
