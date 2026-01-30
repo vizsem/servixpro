@@ -73,21 +73,38 @@ const App = () => {
 
 
   useEffect(() => {
-    // Inisialisasi Auth
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) {
-        fetchAllData(session.user.id);
+    // 1. Inisialisasi Auth Terstruktur
+    const initAuth = async () => {
+      try {
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        setSession(initialSession);
+        if (initialSession) {
+          fetchAllData(initialSession.user.id);
+        }
+      } catch (err) {
+        console.error("Auth init error:", err.message);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session) fetchAllData(session.user.id);
-      else {
+    initAuth();
+
+    // 2. Listener Perubahan Auth yang Lebih Robust
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
+      console.log("Auth Event:", event);
+
+      // Update session state
+      setSession(currentSession);
+
+      if (currentSession) {
+        // Jika ada session baru, ambil data ulang
+        fetchAllData(currentSession.user.id);
+      } else if (event === 'SIGNED_OUT') {
+        // Hanya kosongkan data jika benar-benar logout eksplisit
         setServices([]);
         setStockLogs([]);
+        setActiveModule('dashboard');
       }
     });
 
