@@ -1,11 +1,11 @@
 import React from 'react';
-import { 
-  Printer, 
-  MessageCircle, 
-  ArrowLeft, 
-  MapPin, 
-  Phone, 
-  Calendar, 
+import {
+  Printer,
+  MessageCircle,
+  ArrowLeft,
+  MapPin,
+  Phone,
+  Calendar,
   Hash,
   ShieldCheck,
   CheckCircle2,
@@ -31,12 +31,12 @@ const Invoice = ({ data, onBack }) => {
       `--------------------------------------%0A` +
       `📌 *No. Nota:* ${data.id?.slice(0, 8).toUpperCase()}%0A` +
       `👤 *Pelanggan:* ${data.customer_name}%0A` +
-      `📱 *Unit:* ${data.unit_name}%0A` + 
+      `📱 *Unit:* ${data.unit_name}${data.imei_sn ? ' (' + data.imei_sn + ')' : ''}%0A` +
       `🛠️ *Keluhan:* ${data.issue}%0A` +
       `💰 *Estimasi:* Rp ${Number(data.estimated_cost).toLocaleString('id-ID')}%0A` +
       `--------------------------------------%0A` +
       `Terima kasih telah mempercayakan servis Anda kepada kami.`;
-    
+
     window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
   };
 
@@ -69,12 +69,12 @@ const Invoice = ({ data, onBack }) => {
 
         <div className="space-y-4 mb-8 text-[11px]">
           <div className="flex justify-between">
-  <span className="text-slate-400 font-bold uppercase">No. Nota</span>
-  <span className="font-black text-slate-800 tracking-widest">
-    {/* Mengambil 8 karakter pertama dari ID Supabase dan menjadikannya HURUF BESAR */}
-    {data?.id ? data.id.toString().slice(0, 8).toUpperCase() : 'LOADING...'}
-  </span>
-</div>
+            <span className="text-slate-400 font-bold uppercase">No. Nota</span>
+            <span className="font-black text-slate-800 tracking-widest">
+              {/* Mengambil 8 karakter pertama dari ID Supabase dan menjadikannya HURUF BESAR */}
+              {data?.id ? data.id.toString().slice(0, 8).toUpperCase() : 'LOADING...'}
+            </span>
+          </div>
           <div className="flex justify-between">
             <span className="text-slate-400 font-bold uppercase">Tanggal</span>
             <span className="font-bold text-slate-800">{today}</span>
@@ -88,6 +88,7 @@ const Invoice = ({ data, onBack }) => {
         <div className="bg-slate-50 rounded-3xl p-5 mb-8 border border-slate-100">
           <p className="text-[10px] font-black text-blue-600 uppercase mb-3">Unit & Keluhan</p>
           <h3 className="text-sm font-black text-slate-800 mb-1">{data.unit_name}</h3>
+          {data.imei_sn && <p className="text-[9px] font-bold text-slate-400 mb-2">IMEI/SN: {data.imei_sn}</p>}
           <p className="text-xs text-slate-500 italic">"{data.issue}"</p>
         </div>
 
@@ -97,7 +98,7 @@ const Invoice = ({ data, onBack }) => {
         </div>
 
         <div className="mt-10 text-center text-[9px] text-slate-400 leading-relaxed uppercase font-bold tracking-tighter">
-          Nota ini adalah bukti sah penerimaan unit.<br/>Harap dibawa saat pengambilan.
+          Nota ini adalah bukti sah penerimaan unit.<br />Harap dibawa saat pengambilan.
         </div>
       </div>
     </div>

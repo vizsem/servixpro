@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   X, User, Phone, Smartphone, AlertCircle,
-  CheckCircle2, Loader2, Printer, Search, PenTool
+  CheckCircle2, Loader2, Printer, Search, PenTool, Hash
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import Invoice from './Invoice';
@@ -178,6 +178,21 @@ const AddServiceForm = ({ onComplete }) => {
                 value={formData.unit_name}
                 onChange={(e) => setFormData({ ...formData, unit_name: e.target.value })}
                 placeholder="iPhone / Android / Laptop"
+                className="w-full bg-slate-50 border-2 border-transparent rounded-[1.2rem] py-3.5 pl-11 pr-4 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all text-sm outline-none font-bold"
+              />
+            </div>
+          </div>
+
+          {/* Input IMEI/SN */}
+          <div className="group">
+            <label className="text-[10px] font-black uppercase text-slate-400 ml-4 mb-1 block tracking-widest">IMEI / Serial Number</label>
+            <div className="relative">
+              <Hash className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
+              <input
+                type="text"
+                value={formData.imei_sn}
+                onChange={(e) => setFormData({ ...formData, imei_sn: e.target.value })}
+                placeholder="IMEI atau Nomor Seri (Opsional)"
                 className="w-full bg-slate-50 border-2 border-transparent rounded-[1.2rem] py-3.5 pl-11 pr-4 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 transition-all text-sm outline-none font-bold"
               />
             </div>
