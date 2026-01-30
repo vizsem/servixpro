@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { 
-  TrendingUp, TrendingDown, Wallet, PieChart, 
+import {
+  TrendingUp, TrendingDown, Wallet, PieChart,
   ArrowUpRight, Loader2, Printer, RefreshCw, Package, XCircle
 } from 'lucide-react';
 
@@ -9,15 +9,20 @@ const FinanceReport = () => {
   const [loading, setLoading] = useState(true);
   const [dataServis, setDataServis] = useState([]);
   const [dataStockLogs, setDataStockLogs] = useState([]);
-  const [summary, setSummary] = useState({
-    income: 0,
-    expense: 0,
-    profit: 0
+  const [stats, setStats] = useState({
+    totalIncome: 0,
+    totalExpense: 0,
+    operationalExpense: 0,
+    netProfit: 0
+  });
+  const [dateRange, setDateRange] = useState({
+    start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+    end: new Date().toISOString().split('T')[0]
   });
 
   useEffect(() => {
     fetchFinanceData();
-  }, []);
+  }, [dateRange]);
 
   const fetchFinanceData = async () => {
     try {
@@ -31,46 +36,51 @@ const FinanceReport = () => {
         .select('unit_name, customer_name, estimated_cost, created_at, status')
         .eq('user_id', session.user.id)
         .eq('status', 'Done')
+        .gte('created_at', `${dateRange.start}T00:00:00`)
+        .lte('created_at', `${dateRange.end}T23:59:59`)
         .order('created_at', { ascending: false });
 
       if (sError) throw sError;
 
       // 2. Ambil Data Log Stok Keluar (Modal)
       // Pastikan relasi spareparts(name, price_buy) sudah benar di database
-     // Ganti bagian query stock_logs dengan ini
-const { data: logs, error: lError } = await supabase
-  .from('stock_logs')
-  .select(`
-    id,
-    quantity,
-    type,
-    created_at,
-    spareparts!inner (
-      name,
-      price_buy
-    )
-  `) // Tambahkan !inner untuk memastikan hanya mengambil log yang punya data sparepart
-  .eq('user_id', session.user.id)
-  .eq('type', 'Keluar')
-  .order('created_at', { ascending: false });
+      // Ganti bagian query stock_logs dengan ini
+      const { data: logs, error: lError } = await supabase
+        .from('stock_logs')
+        .select('*, spareparts(price_buy, name)')
+        .eq('user_id', session.user.id) // Keep user_id filter
+        .eq('type', 'Keluar')
+        .gte('created_at', `${dateRange.start}T00:00:00`)
+        .lte('created_at', `${dateRange.end}T23:59:59`)
+        .order('created_at', { ascending: false }); // Keep order clause
 
       if (lError) throw lError;
 
-      // 3. Kalkulasi Angka
-      const totalIncome = services.reduce((acc, curr) => acc + (Number(curr.estimated_cost) || 0), 0);
-      
-      const totalExpense = logs.reduce((acc, curr) => {
-        // Cek jika data spareparts ada (mencegah error jika sparepart dihapus)
-        const hargaBeli = curr.spareparts?.price_buy || 0;
-        return acc + (hargaBeli * curr.quantity);
-      }, 0);
+      // 3. Ambil data pengeluaran operasional
+      const { data: expData, error: expError } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('user_id', session.user.id) // Add user_id filter
+        .gte('date', dateRange.start)
+        .lte('date', dateRange.end)
+        .order('date', { ascending: false }); // Add order clause
 
-      setSummary({
-        income: totalIncome,
-        expense: totalExpense,
-        profit: totalIncome - totalExpense
+      if (expError) throw expError;
+
+      // 4. Kalkulasi Angka
+      const income = services?.reduce((acc, curr) => acc + (Number(curr.estimated_cost) || 0), 0) || 0;
+      const stockExpense = logs?.reduce((acc, curr) => acc + (Number(curr.spareparts?.price_buy || 0) * curr.quantity), 0) || 0;
+      const operationalExpense = expData?.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0) || 0;
+
+      const totalExp = stockExpense + operationalExpense;
+
+      setStats({
+        totalIncome: income,
+        totalExpense: totalExp,
+        operationalExpense: operationalExpense,
+        netProfit: income - totalExp
       });
-      
+
       setDataServis(services || []);
       setDataStockLogs(logs || []);
 
@@ -99,6 +109,20 @@ const { data: logs, error: lError } = await supabase
           <p className="text-slate-500 text-xs font-medium">Data terpusat jasa dan sparepart</p>
         </div>
         <div className="flex gap-2">
+          <div className="flex bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+            <input
+              type="date"
+              value={dateRange.start}
+              onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+              className="px-3 py-2 text-[10px] font-bold outline-none border-r border-slate-100"
+            />
+            <input
+              type="date"
+              value={dateRange.end}
+              onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+              className="px-3 py-2 text-[10px] font-bold outline-none"
+            />
+          </div>
           <button onClick={fetchFinanceData} className="p-3 bg-white border border-slate-200 rounded-2xl text-slate-600 hover:bg-slate-50 transition-colors">
             <RefreshCw size={18} />
           </button>
@@ -114,23 +138,24 @@ const { data: logs, error: lError } = await supabase
           <div className="relative z-10">
             <p className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] mb-2">Estimasi Laba Bersih</p>
             <h2 className="text-5xl font-black mb-10 tracking-tighter">
-              Rp {summary.profit.toLocaleString('id-ID')}
+              Rp {stats.netProfit.toLocaleString('id-ID')}
             </h2>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-5 rounded-3xl">
                 <div className="flex items-center gap-2 mb-1 text-emerald-400">
                   <TrendingUp size={14} />
                   <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Omzet</span>
                 </div>
-                <p className="text-lg font-bold">Rp {summary.income.toLocaleString('id-ID')}</p>
+                <p className="text-lg font-bold">Rp {stats.totalIncome.toLocaleString('id-ID')}</p>
               </div>
               <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-5 rounded-3xl">
                 <div className="flex items-center gap-2 mb-1 text-rose-400">
                   <TrendingDown size={14} />
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Biaya</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Pengeluaran</span>
                 </div>
-                <p className="text-lg font-bold">Rp {summary.expense.toLocaleString('id-ID')}</p>
+                <p className="text-lg font-bold">Rp {stats.totalExpense.toLocaleString('id-ID')}</p>
+                <p className="text-[9px] text-slate-500 font-bold mt-2">Ops: {stats.operationalExpense.toLocaleString()} | Stok: {(stats.totalExpense - stats.operationalExpense).toLocaleString()}</p>
               </div>
             </div>
           </div>
@@ -141,12 +166,12 @@ const { data: logs, error: lError } = await supabase
         <div className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
           <div className="p-6 border-b border-slate-50 bg-rose-50/20 flex justify-between items-center">
             <div className="flex items-center gap-2">
-               <Package size={18} className="text-rose-500" />
-               <h3 className="font-bold text-slate-800 text-sm">Produk Keluar (Modal)</h3>
+              <Package size={18} className="text-rose-500" />
+              <h3 className="font-bold text-slate-800 text-sm">Produk Keluar (Modal)</h3>
             </div>
             <span className="text-[10px] font-black text-rose-600 bg-rose-100 px-3 py-1 rounded-full uppercase">Audit Stok</span>
           </div>
-          
+
           <div className="divide-y divide-slate-50">
             {dataStockLogs.length > 0 ? dataStockLogs.map((log) => (
               <div key={log.id} className="p-5 flex items-center justify-between hover:bg-slate-50 transition-colors">
@@ -191,7 +216,7 @@ const { data: logs, error: lError } = await supabase
               <div key={index} className="p-5 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="h-10 w-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center font-black text-xs">
-                    {trx.unit_name.substring(0,2).toUpperCase()}
+                    {trx.unit_name.substring(0, 2).toUpperCase()}
                   </div>
                   <div>
                     <p className="text-sm font-bold text-slate-800 leading-none mb-1">{trx.unit_name}</p>
@@ -221,7 +246,8 @@ const { data: logs, error: lError } = await supabase
         </div>
       </div>
 
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         @media print {
           .no-print { display: none !important; }
           body { background: white; padding: 0; margin: 0; }

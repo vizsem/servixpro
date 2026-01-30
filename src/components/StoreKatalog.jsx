@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { 
-  Store, MapPin, Globe, Loader2, Plus, 
+import {
+  Store, MapPin, Globe, Loader2, Plus,
   RefreshCw, FileUp, Download, Save, Edit3, Check, X, Package
 } from 'lucide-react';
 
@@ -132,6 +132,16 @@ const StoreKatalog = () => {
           <p className="text-slate-500 text-sm mt-1">Kelola distribusi stok dan harga seluruh toko</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => {
+              const url = window.location.origin + window.location.pathname + '#katalog';
+              navigator.clipboard.writeText(url);
+              alert("Link katalog berhasil disalin ke clipboard!");
+            }}
+            className="bg-blue-50 text-blue-600 border border-blue-100 px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 hover:bg-blue-100 transition-all"
+          >
+            <Globe size={14} /> Bagikan Katalog
+          </button>
           <button onClick={downloadTemplate} className="bg-white border border-slate-200 px-4 py-2.5 rounded-xl font-medium text-xs flex items-center gap-2 hover:bg-slate-50">
             <Download size={14} /> Template CSV
           </button>
@@ -179,8 +189,8 @@ const StoreKatalog = () => {
                   </td>
                   <td className="px-8 py-4 text-center">
                     {isEditingPrice ? (
-                      <input 
-                        type="number" 
+                      <input
+                        type="number"
                         className="w-28 text-center bg-white border border-blue-200 rounded-lg py-1.5 text-xs font-bold text-blue-600 outline-none"
                         defaultValue={prod.price_sell}
                         onChange={(e) => setEditedPrices({ ...editedPrices, [prod.id]: e.target.value })}
@@ -214,16 +224,16 @@ const StoreKatalog = () => {
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <form onSubmit={handleAddSingleProduct} className="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl animate-in zoom-in-95">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Package size={20} className="text-blue-600"/> Tambah Produk Baru</h3>
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Package size={20} className="text-blue-600" /> Tambah Produk Baru</h3>
               <button type="button" onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600"><X /></button>
             </div>
             <div className="space-y-4">
-              <input required placeholder="Nama Produk (Contoh: LCD iPhone 11)" className="w-full bg-slate-50 p-4 rounded-xl outline-none border border-transparent focus:border-blue-500 transition-all text-sm" value={newProduct.name} onChange={e => setNewProduct({...newProduct, name: e.target.value})} />
+              <input required placeholder="Nama Produk (Contoh: LCD iPhone 11)" className="w-full bg-slate-50 p-4 rounded-xl outline-none border border-transparent focus:border-blue-500 transition-all text-sm" value={newProduct.name} onChange={e => setNewProduct({ ...newProduct, name: e.target.value })} />
               <div className="grid grid-cols-2 gap-3">
-                <input required type="number" placeholder="Harga Beli" className="w-full bg-slate-50 p-4 rounded-xl outline-none text-sm" value={newProduct.price_buy} onChange={e => setNewProduct({...newProduct, price_buy: e.target.value})} />
-                <input required type="number" placeholder="Harga Jual" className="w-full bg-slate-50 p-4 rounded-xl outline-none text-sm" value={newProduct.price_sell} onChange={e => setNewProduct({...newProduct, price_sell: e.target.value})} />
+                <input required type="number" placeholder="Harga Beli" className="w-full bg-slate-50 p-4 rounded-xl outline-none text-sm" value={newProduct.price_buy} onChange={e => setNewProduct({ ...newProduct, price_buy: e.target.value })} />
+                <input required type="number" placeholder="Harga Jual" className="w-full bg-slate-50 p-4 rounded-xl outline-none text-sm" value={newProduct.price_sell} onChange={e => setNewProduct({ ...newProduct, price_sell: e.target.value })} />
               </div>
-              <select className="w-full bg-slate-50 p-4 rounded-xl outline-none text-sm" value={newProduct.category} onChange={e => setNewProduct({...newProduct, category: e.target.value})}>
+              <select className="w-full bg-slate-50 p-4 rounded-xl outline-none text-sm" value={newProduct.category} onChange={e => setNewProduct({ ...newProduct, category: e.target.value })}>
                 <option>Sparepart</option><option>LCD</option><option>Baterai</option><option>Konektor</option><option>Aksesori</option>
               </select>
             </div>
@@ -234,7 +244,7 @@ const StoreKatalog = () => {
       )}
     </div>
   );
-  
+
 };
 
 export default StoreKatalog;
