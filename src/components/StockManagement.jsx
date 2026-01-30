@@ -51,7 +51,7 @@ const StockManagement = () => {
     }
   }, [fetchPartsByLocation, fetchStockLogs]);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
+
   useEffect(() => { fetchInitialData(); }, [fetchInitialData]);
 
   const handleTransaction = async (item, amount) => {

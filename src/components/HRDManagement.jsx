@@ -50,13 +50,9 @@ const HRDManagement = () => {
     }
   }, [calculateShares]);
 
-  const isInitialMount = React.useRef(true);
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
-    if (isInitialMount.current) {
-      fetchCommissionData();
-      isInitialMount.current = false;
-    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchCommissionData();
   }, [fetchCommissionData]);
 
   const handlePayout = async () => {

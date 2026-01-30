@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   X, User, Phone, Smartphone, AlertCircle,
-  CheckCircle2, Loader2, Printer, Search
+  CheckCircle2, Loader2, Printer, Search, PenTool
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import Invoice from './Invoice';

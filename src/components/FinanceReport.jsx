@@ -22,9 +22,9 @@ const FinanceReport = () => {
 
   useEffect(() => {
     fetchFinanceData();
-  }, [dateRange]);
+  }, [dateRange, fetchFinanceData]);
 
-  const fetchFinanceData = async () => {
+  const fetchFinanceData = React.useCallback(async () => {
     try {
       setLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
@@ -89,7 +89,7 @@ const FinanceReport = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dateRange]);
 
   const handlePrint = () => window.print();
 

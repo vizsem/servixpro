@@ -27,13 +27,18 @@ const StoreKatalog = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const { data: locData } = await supabase.from('locations').select('*').eq('user_id', session.user.id);
+      const [
+        { data: locData },
+        { data: prodData },
+        { data: invData }
+      ] = await Promise.all([
+        supabase.from('locations').select('*').eq('user_id', session.user.id),
+        supabase.from('spareparts').select('*').eq('user_id', session.user.id).order('name'),
+        supabase.from('location_inventory').select('*')
+      ]);
+
       setLocations(locData || []);
-
-      const { data: prodData } = await supabase.from('spareparts').select('*').eq('user_id', session.user.id).order('name');
       setAllProducts(prodData || []);
-
-      const { data: invData } = await supabase.from('location_inventory').select('*');
       setInventory(invData || []);
     } catch (error) {
       console.error("Gagal sinkronisasi:", error.message);

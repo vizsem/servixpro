@@ -8,7 +8,6 @@ import {
 const PublicStore = ({ onBack }) => {
     const [products, setProducts] = useState([]);
     const [inventory, setInventory] = useState([]);
-    const [locations, setLocations] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('Semua');
@@ -20,15 +19,16 @@ const PublicStore = ({ onBack }) => {
     const fetchPublicData = async () => {
         try {
             setLoading(true);
-            // Fetch data for the public view
-            // In a real app, you might filter by a specific store ID from the URL
-            const { data: prodData } = await supabase.from('spareparts').select('*').order('name');
-            const { data: invData } = await supabase.from('location_inventory').select('*, locations(*)');
-            const { data: locData } = await supabase.from('locations').select('*');
+            const [
+                { data: prodData },
+                { data: invData }
+            ] = await Promise.all([
+                supabase.from('spareparts').select('*').order('name'),
+                supabase.from('location_inventory').select('*, locations(*)')
+            ]);
 
             setProducts(prodData || []);
             setInventory(invData || []);
-            setLocations(locData || []);
         } catch (error) {
             console.error("Error fetching public data:", error);
         } finally {
@@ -116,13 +116,12 @@ const PublicStore = ({ onBack }) => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                     {filteredProducts.map(prod => {
                         const prodInventory = inventory.filter(i => i.product_id === prod.id);
-                        const totalStock = prodInventory.reduce((acc, curr) => acc + curr.quantity, 0);
 
                         return (
                             <div key={prod.id} className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm hover:shadow-xl transition-all group flex flex-col">
                                 <div className="flex justify-between items-start mb-6">
                                     <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-100 transition-transform group-hover:scale-110 ${prod.category === 'LCD' ? 'bg-blue-600' :
-                                            prod.category === 'Baterai' ? 'bg-emerald-500' : 'bg-slate-800'
+                                        prod.category === 'Baterai' ? 'bg-emerald-500' : 'bg-slate-800'
                                         }`}>
                                         {prod.category === 'LCD' ? <Smartphone size={24} /> : <ShoppingCart size={24} />}
                                     </div>
@@ -154,7 +153,7 @@ const PublicStore = ({ onBack }) => {
                                                     </span>
                                                 </div>
                                                 <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg ${inv.quantity > 5 ? 'bg-emerald-50 text-emerald-600' :
-                                                        inv.quantity > 0 ? 'bg-orange-50 text-orange-600' : 'bg-slate-50 text-slate-300'
+                                                    inv.quantity > 0 ? 'bg-orange-50 text-orange-600' : 'bg-slate-50 text-slate-300'
                                                     }`}>
                                                     {inv.quantity > 0 ? `${inv.quantity} Ready` : 'Habis'}
                                                 </span>

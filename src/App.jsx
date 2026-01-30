@@ -23,7 +23,6 @@ const App = () => {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeModule, setActiveModule] = useState('dashboard');
-  const [showAuthScreen, setShowAuthScreen] = useState(false);
   const [services, setServices] = useState([]);
   const [stockLogs, setStockLogs] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -36,23 +35,27 @@ const App = () => {
   // Fungsi ambil semua data terpusat
   const fetchAllData = React.useCallback(async (userId) => {
     if (!userId) return;
-    const { data: sData } = await supabase.from('services').select('*').eq('user_id', userId).order('created_at', { ascending: false });
-    if (sData) setServices(sData);
 
-    const { data: lData } = await supabase.from('stock_logs').select('*, spareparts(name)').eq('user_id', userId).order('created_at', { ascending: false }).limit(5);
-    if (lData) setStockLogs(lData);
+    try {
+      const [
+        { data: sData },
+        { data: lData },
+        { data: lowStockData },
+        { data: invData }
+      ] = await Promise.all([
+        supabase.from('services').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabase.from('stock_logs').select('*, spareparts(name)').eq('user_id', userId).order('created_at', { ascending: false }).limit(5),
+        supabase.from('location_inventory').select('*, spareparts(name)').lt('quantity', 5).limit(3),
+        supabase.from('location_inventory').select('*, spareparts(*), locations(*)')
+      ]);
 
-    const { data: iData } = await supabase.from('location_inventory')
-      .select('*, spareparts(name)')
-      .lt('quantity', 5)
-      .limit(3);
-    if (iData) setLowStockItems(iData.map(i => ({ name: i.spareparts?.name, quantity: i.quantity })));
-
-    // Ambil Seluruh Inventori untuk Picker (Termasuk Cabang)
-    const { data: invData } = await supabase
-      .from('location_inventory')
-      .select('*, spareparts(*), locations(*)');
-    if (invData) setInventory(invData);
+      if (sData) setServices(sData);
+      if (lData) setStockLogs(lData);
+      if (lowStockData) setLowStockItems(lowStockData.map(i => ({ name: i.spareparts?.name, quantity: i.quantity })));
+      if (invData) setInventory(invData);
+    } catch (error) {
+      console.error("Error fetching data in parallel:", error.message);
+    }
   }, []);
 
   const updateStatus = async (id, currentStatus) => {
@@ -65,7 +68,7 @@ const App = () => {
     }
   };
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
+
   useEffect(() => {
     // Inisialisasi Auth
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -102,7 +105,6 @@ const App = () => {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setActiveModule('dashboard');
-    setShowAuthScreen(false);
   };
 
   const totalOmzet = services
