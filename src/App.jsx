@@ -4,7 +4,7 @@ import {
   Smartphone, BarChart3, Package, Users, Store,
   LayoutGrid, Search, Zap, Plus, LogOut, Key,
   Clock, Trash2, X, ChevronRight, ArrowLeft,
-  CheckCircle2, RefreshCw, Bell, AlertCircle, TrendingDown, Printer, MapPin, Globe, Share2
+  CheckCircle2, RefreshCw, Bell, AlertCircle, TrendingDown, Printer, MapPin, Globe, Share2, Edit3, Check
 } from 'lucide-react';
 
 // Import Komponen
@@ -32,6 +32,8 @@ const App = () => {
   const [showPartPicker, setShowPartPicker] = useState(null); // Service ID for which we are picking parts
   const [inventory, setInventory] = useState([]);
   const [pickerSearch, setPickerSearch] = useState('');
+  const [editingCost, setEditingCost] = useState(null);
+  const [tempCost, setTempCost] = useState('');
 
   // Fungsi ambil semua data terpusat
   const fetchAllData = React.useCallback(async (userId) => {
@@ -68,6 +70,16 @@ const App = () => {
     if (nextStatus) {
       const { error } = await supabase.from('services').update({ status: nextStatus }).eq('id', id);
       if (!error && session) fetchAllData(session.user.id);
+    }
+  };
+
+  const handleSaveCost = async (id) => {
+    const { error } = await supabase.from('services').update({ estimated_cost: Number(tempCost) }).eq('id', id);
+    if (!error) {
+      setEditingCost(null);
+      if (session) fetchAllData(session.user.id);
+    } else {
+      alert("Gagal update nominal: " + error.message);
     }
   };
 
@@ -373,7 +385,42 @@ const App = () => {
                       <div className="flex items-center justify-between pt-6 border-t border-slate-50 mt-6">
                         <div>
                           <p className="text-[9px] font-bold text-slate-400 uppercase">Estimasi Biaya</p>
-                          <p className="text-lg font-black text-slate-800">Rp {Number(s.estimated_cost).toLocaleString()}</p>
+                          {editingCost === s.id ? (
+                            <div className="flex items-center gap-2 mt-1">
+                              <input
+                                type="number"
+                                value={tempCost}
+                                onChange={(e) => setTempCost(e.target.value)}
+                                className="w-24 bg-white border border-blue-200 rounded-lg px-2 py-1 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100"
+                                autoFocus
+                              />
+                              <button
+                                onClick={() => handleSaveCost(s.id)}
+                                className="p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                              >
+                                <Check size={14} />
+                              </button>
+                              <button
+                                onClick={() => setEditingCost(null)}
+                                className="p-1.5 bg-slate-100 text-slate-400 rounded-lg hover:bg-slate-200 transition-colors"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <p className="text-lg font-black text-slate-800">Rp {Number(s.estimated_cost).toLocaleString()}</p>
+                              <button
+                                onClick={() => {
+                                  setEditingCost(s.id);
+                                  setTempCost(s.estimated_cost);
+                                }}
+                                className="p-1.5 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-all"
+                              >
+                                <Edit3 size={14} />
+                              </button>
+                            </div>
+                          )}
                         </div>
                         <div className="flex gap-2">
                           <button onClick={() => setActiveInvoice(s)} className="p-3 text-slate-300 hover:text-blue-500 transition-colors"><Printer size={20} /></button>

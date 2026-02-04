@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import {
   Store, MapPin, Globe, Loader2, Plus,
-  RefreshCw, FileUp, Download, Save, Edit3, Check, X, Package
+  RefreshCw, FileUp, Download, Save, Edit3, Check, X, Package,
+  ArrowRightLeft, History, AlertCircle
 } from 'lucide-react';
 
 const StoreKatalog = () => {
@@ -19,6 +20,12 @@ const StoreKatalog = () => {
   });
   const [newLocation, setNewLocation] = useState({
     name: '', type: 'Toko'
+  });
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [transferLogs, setTransferLogs] = useState([]);
+  const [transferData, setTransferData] = useState({
+    product_id: '', source_location_id: '', destination_location_id: '', quantity: 1
   });
 
   useEffect(() => {
@@ -49,6 +56,19 @@ const StoreKatalog = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchTransferLogs = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const { data, error } = await supabase
+      .from('stock_logs')
+      .select('*, spareparts(name), locations(*)')
+      .eq('user_id', session.user.id)
+      .eq('type', 'Keluar')
+      .ilike('notes', '%[TRANSFER]%')
+      .order('created_at', { ascending: false });
+    if (!error) setTransferLogs(data);
   };
 
   // --- FUNGSI TAMBAH SATUAN ---
@@ -145,6 +165,49 @@ const StoreKatalog = () => {
     fetchStoreData();
   };
 
+  const handleTransferStock = async (e) => {
+    e.preventDefault();
+    const { product_id, source_location_id, destination_location_id, quantity } = transferData;
+    const qtyNum = parseInt(quantity);
+
+    if (source_location_id === destination_location_id) return alert("Asal dan tujuan tidak boleh sama.");
+
+    const sourceInv = inventory.find(i => i.product_id === product_id && i.location_id === source_location_id);
+    if (!sourceInv || sourceInv.quantity < qtyNum) return alert("Stok di asal tidak mencukupi.");
+
+    const { data: { session } } = await supabase.auth.getSession();
+
+    // 1. Update/Subtract Source
+    await supabase.from('location_inventory').update({ quantity: sourceInv.quantity - qtyNum }).eq('product_id', product_id).eq('location_id', source_location_id);
+
+    // 2. Update/Add Destination
+    const destInv = inventory.find(i => i.product_id === product_id && i.location_id === destination_location_id);
+    await supabase.from('location_inventory').upsert({
+      product_id,
+      location_id: destination_location_id,
+      quantity: (destInv ? destInv.quantity : 0) + qtyNum
+    }, { onConflict: 'product_id, location_id' });
+
+    // 3. Log the transfer
+    const sourceName = locations.find(l => l.id === source_location_id)?.name;
+    const destName = locations.find(l => l.id === destination_location_id)?.name;
+    const productName = allProducts.find(p => p.id === product_id)?.name;
+
+    await supabase.from('stock_logs').insert([{
+      user_id: session.user.id,
+      product_id: product_id,
+      location_id: source_location_id,
+      type: 'Keluar',
+      quantity: qtyNum,
+      price_at_transaction: allProducts.find(p => p.id === product_id)?.price_sell || 0,
+      notes: `[TRANSFER] ${productName} (${qtyNum}) dikirim dari ${sourceName} ke ${destName}`
+    }]);
+
+    alert("Transfer stok berhasil!");
+    setShowTransferModal(false);
+    fetchStoreData();
+  };
+
   if (loading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin text-blue-600" /></div>;
 
   return (
@@ -175,6 +238,12 @@ const StoreKatalog = () => {
             <FileUp size={14} className="text-blue-600" /> Import Masal
             <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
           </label>
+          <button onClick={() => { setShowHistoryModal(true); fetchTransferLogs(); }} className="bg-white border border-slate-200 px-4 py-2.5 rounded-xl font-medium text-xs flex items-center gap-2 hover:bg-slate-50">
+            <History size={14} className="text-orange-500" /> Riwayat Distribusi
+          </button>
+          <button onClick={() => setShowTransferModal(true)} className="bg-indigo-600 text-white px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 shadow-lg shadow-indigo-100 hover:bg-indigo-500 transition-all">
+            <ArrowRightLeft size={14} /> Transfer Stok
+          </button>
           <button onClick={() => setShowAddLocationModal(true)} className="bg-blue-600 text-white px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 shadow-lg shadow-blue-100 hover:bg-blue-500 transition-all">
             <Plus size={14} /> Tambah Cabang
           </button>
@@ -296,6 +365,83 @@ const StoreKatalog = () => {
           </form>
         </div>
 
+      )}
+
+      {/* Modal Transfer Stok */}
+      {showTransferModal && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <form onSubmit={handleTransferStock} className="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl animate-in zoom-in-95">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><ArrowRightLeft size={20} className="text-indigo-600" /> Transfer Stok Antar Gudang</h3>
+              <button type="button" onClick={() => setShowTransferModal(false)} className="text-slate-400 hover:text-slate-600"><X /></button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Pilih Produk</label>
+                <select required className="w-full bg-slate-50 p-4 rounded-xl outline-none text-sm font-bold" value={transferData.product_id} onChange={e => setTransferData({ ...transferData, product_id: e.target.value })}>
+                  <option value="">-- Pilih Produk --</option>
+                  {allProducts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Dari Lokasi</label>
+                  <select required className="w-full bg-slate-50 p-4 rounded-xl outline-none text-sm font-bold text-rose-600" value={transferData.source_location_id} onChange={e => setTransferData({ ...transferData, source_location_id: e.target.value })}>
+                    <option value="">-- Asal --</option>
+                    {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Ke Lokasi</label>
+                  <select required className="w-full bg-slate-50 p-4 rounded-xl outline-none text-sm font-bold text-emerald-600" value={transferData.destination_location_id} onChange={e => setTransferData({ ...transferData, destination_location_id: e.target.value })}>
+                    <option value="">-- Tujuan --</option>
+                    {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Jumlah Barang</label>
+                <input required type="number" min="1" className="w-full bg-slate-50 p-4 rounded-xl outline-none border border-transparent focus:border-indigo-500 text-sm font-bold" value={transferData.quantity} onChange={e => setTransferData({ ...transferData, quantity: e.target.value })} />
+              </div>
+            </div>
+            <button className="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold mt-6 shadow-lg shadow-indigo-100 active:scale-95 transition-all text-[10px] tracking-widest uppercase">Proses Pemindahan</button>
+          </form>
+        </div>
+      )}
+
+      {/* Modal Riwayat Distribusi */}
+      {showHistoryModal && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-2xl rounded-[2rem] p-8 shadow-2xl animate-in zoom-in-95 max-h-[80vh] flex flex-col">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><History size={20} className="text-orange-500" /> Riwayat Distribusi Stok</h3>
+              <button type="button" onClick={() => setShowHistoryModal(false)} className="text-slate-400 hover:text-slate-600"><X /></button>
+            </div>
+            <div className="overflow-y-auto space-y-3 pr-2 scrollbar-thin">
+              {transferLogs.length > 0 ? transferLogs.map((log, idx) => (
+                <div key={idx} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-start gap-4">
+                  <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-orange-500">
+                    <ArrowRightLeft size={18} />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs font-bold text-slate-800">{log.notes}</p>
+                    <div className="flex items-center gap-3 mt-1">
+                      <p className="text-[10px] font-medium text-slate-400 flex items-center gap-1">
+                        <Clock size={10} /> {new Date(log.created_at).toLocaleString('id-ID')}
+                      </p>
+                      <span className="text-[9px] font-bold bg-white px-2 py-0.5 rounded-full border border-slate-100 text-slate-500 uppercase">Transfer</span>
+                    </div>
+                  </div>
+                </div>
+              )) : (
+                <div className="text-center py-20">
+                  <AlertCircle size={40} className="mx-auto text-slate-200 mb-4" />
+                  <p className="text-sm text-slate-400 italic">Belum ada riwayat pemindahan barang.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
