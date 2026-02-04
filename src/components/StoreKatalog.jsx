@@ -3,8 +3,9 @@ import { supabase } from '../supabaseClient';
 import {
   Store, MapPin, Globe, Loader2, Plus,
   RefreshCw, FileUp, Download, Save, Edit3, Check, X, Package,
-  ArrowRightLeft, History, AlertCircle
+  ArrowRightLeft, History, AlertCircle, Clock
 } from 'lucide-react';
+import { Skeleton, EmptyState, Toast } from './UI';
 
 const StoreKatalog = () => {
   const [locations, setLocations] = useState([]);
@@ -27,6 +28,7 @@ const StoreKatalog = () => {
   const [transferData, setTransferData] = useState({
     product_id: '', source_location_id: '', destination_location_id: '', quantity: 1
   });
+  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     fetchStoreData();
@@ -71,7 +73,6 @@ const StoreKatalog = () => {
     if (!error) setTransferLogs(data);
   };
 
-  // --- FUNGSI TAMBAH SATUAN ---
   const handleAddSingleProduct = async (e) => {
     e.preventDefault();
     const { data: { session } } = await supabase.auth.getSession();
@@ -83,11 +84,12 @@ const StoreKatalog = () => {
     }]);
 
     if (!error) {
+      setToast({ message: "Produk baru berhasil terdaftar" });
       setShowAddModal(false);
       setNewProduct({ name: '', price_buy: '', price_sell: '', category: 'Sparepart' });
       fetchStoreData();
     } else {
-      alert("Gagal tambah produk: " + error.message);
+      setToast({ message: "Gagal tambah produk: " + error.message, type: 'error' });
     }
   };
 
@@ -100,15 +102,15 @@ const StoreKatalog = () => {
     }]);
 
     if (!error) {
+      setToast({ message: "Cabang baru berhasil terdaftar" });
       setShowAddLocationModal(false);
       setNewLocation({ name: '', type: 'Toko' });
       fetchStoreData();
     } else {
-      alert("Gagal tambah cabang: " + error.message);
+      setToast({ message: "Gagal tambah cabang: " + error.message, type: 'error' });
     }
   };
 
-  // --- DOWNLOAD TEMPLATE CSV ---
   const downloadTemplate = () => {
     const headers = "nama_barang,stok_awal,stok_minimum,harga_beli,harga_jual,kategori\n";
     const example = "LCD iPhone 11,10,2,450000,750000,LCD\nBaterai Samsung A51,15,3,150000,250000,Baterai";
@@ -141,8 +143,12 @@ const StoreKatalog = () => {
       });
 
       const { error } = await supabase.from('spareparts').insert(bulkData);
-      if (!error) fetchStoreData();
-      else alert("Format CSV tidak sesuai template.");
+      if (!error) {
+        setToast({ message: "Import CSV berhasil" });
+        fetchStoreData();
+      } else {
+        setToast({ message: "Format CSV tidak sesuai template.", type: 'error' });
+      }
     };
     reader.readAsText(file);
   };
@@ -170,17 +176,15 @@ const StoreKatalog = () => {
     const { product_id, source_location_id, destination_location_id, quantity } = transferData;
     const qtyNum = parseInt(quantity);
 
-    if (source_location_id === destination_location_id) return alert("Asal dan tujuan tidak boleh sama.");
+    if (source_location_id === destination_location_id) return setToast({ message: "Asal dan tujuan tidak boleh sama.", type: 'error' });
 
     const sourceInv = inventory.find(i => i.product_id === product_id && i.location_id === source_location_id);
-    if (!sourceInv || sourceInv.quantity < qtyNum) return alert("Stok di asal tidak mencukupi.");
+    if (!sourceInv || sourceInv.quantity < qtyNum) return setToast({ message: "Stok di asal tidak mencukupi.", type: 'error' });
 
     const { data: { session } } = await supabase.auth.getSession();
 
-    // 1. Update/Subtract Source
     await supabase.from('location_inventory').update({ quantity: sourceInv.quantity - qtyNum }).eq('product_id', product_id).eq('location_id', source_location_id);
 
-    // 2. Update/Add Destination
     const destInv = inventory.find(i => i.product_id === product_id && i.location_id === destination_location_id);
     await supabase.from('location_inventory').upsert({
       product_id,
@@ -188,7 +192,6 @@ const StoreKatalog = () => {
       quantity: (destInv ? destInv.quantity : 0) + qtyNum
     }, { onConflict: 'product_id, location_id' });
 
-    // 3. Log the transfer
     const sourceName = locations.find(l => l.id === source_location_id)?.name;
     const destName = locations.find(l => l.id === destination_location_id)?.name;
     const productName = allProducts.find(p => p.id === product_id)?.name;
@@ -203,16 +206,13 @@ const StoreKatalog = () => {
       notes: `[TRANSFER] ${productName} (${qtyNum}) dikirim dari ${sourceName} ke ${destName}`
     }]);
 
-    alert("Transfer stok berhasil!");
+    setToast({ message: "Transfer stok berhasil!" });
     setShowTransferModal(false);
     fetchStoreData();
   };
 
-  if (loading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin text-blue-600" /></div>;
-
   return (
     <div className="space-y-6 animate-in fade-in duration-500 font-sans">
-      {/* Header */}
       <div className="flex flex-col md:flex-row justify-between gap-4 px-2">
         <div>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-3 tracking-tight">
@@ -225,7 +225,7 @@ const StoreKatalog = () => {
             onClick={() => {
               const url = window.location.origin + window.location.pathname + '#katalog';
               navigator.clipboard.writeText(url);
-              alert("Link katalog berhasil disalin ke clipboard!");
+              setToast({ message: "Link katalog berhasil disalin ke clipboard!" });
             }}
             className="bg-blue-50 text-blue-600 border border-blue-100 px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 hover:bg-blue-100 transition-all"
           >
@@ -253,7 +253,6 @@ const StoreKatalog = () => {
         </div>
       </div>
 
-      {/* Kontrol Harga */}
       <div className="flex justify-end gap-2 px-2">
         <button onClick={() => setIsEditingPrice(!isEditingPrice)} className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 transition-all ${isEditingPrice ? 'bg-orange-100 text-orange-600 border border-orange-200' : 'bg-white border border-slate-200 text-slate-600'}`}>
           <Edit3 size={14} /> {isEditingPrice ? 'Batal Edit Harga' : 'Edit Harga Masal'}
@@ -265,7 +264,6 @@ const StoreKatalog = () => {
         )}
       </div>
 
-      {/* Tabel Utama */}
       <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -279,7 +277,17 @@ const StoreKatalog = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {allProducts.map(prod => (
+              {loading ? (
+                [1, 2, 3, 4, 5].map(i => (
+                  <tr key={i}>
+                    <td className="px-8 py-4"><Skeleton className="h-10 w-48" /></td>
+                    <td className="px-8 py-4"><Skeleton className="h-6 w-24 mx-auto" /></td>
+                    {locations.map(loc => (
+                      <td key={loc.id} className="px-6 py-4 border-l border-slate-100"><Skeleton className="h-8 w-20 mx-auto" /></td>
+                    ))}
+                  </tr>
+                ))
+              ) : allProducts.length > 0 ? allProducts.map(prod => (
                 <tr key={prod.id} className="hover:bg-slate-50/50">
                   <td className="px-8 py-4">
                     <p className="font-bold text-slate-800 text-sm">{prod.name}</p>
@@ -311,13 +319,25 @@ const StoreKatalog = () => {
                     );
                   })}
                 </tr>
-              ))}
+              )) : (
+                <tr>
+                  <td colSpan={locations.length + 2}>
+                    <EmptyState
+                      icon={Package}
+                      title="Katalog Kosong"
+                      desc="Belum ada produk yang didaftarkan ke katalog utama."
+                      actionText="Tambah Produk"
+                      onAction={() => setShowAddModal(true)}
+                    />
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Modal Tambah Cabang */}
+      {/* Modals */}
       {showAddLocationModal && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <form onSubmit={handleAddLocation} className="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl animate-in zoom-in-95">
@@ -343,7 +363,6 @@ const StoreKatalog = () => {
         </div>
       )}
 
-      {/* Modal Tambah Satuan */}
       {showAddModal && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <form onSubmit={handleAddSingleProduct} className="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl animate-in zoom-in-95">
@@ -364,10 +383,8 @@ const StoreKatalog = () => {
             <button className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold mt-6 shadow-lg shadow-blue-100 active:scale-95 transition-all">Simpan ke Katalog</button>
           </form>
         </div>
-
       )}
 
-      {/* Modal Transfer Stok */}
       {showTransferModal && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <form onSubmit={handleTransferStock} className="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl animate-in zoom-in-95">
@@ -409,7 +426,6 @@ const StoreKatalog = () => {
         </div>
       )}
 
-      {/* Modal Riwayat Distribusi */}
       {showHistoryModal && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <div className="bg-white w-full max-w-2xl rounded-[2rem] p-8 shadow-2xl animate-in zoom-in-95 max-h-[80vh] flex flex-col">
@@ -443,9 +459,9 @@ const StoreKatalog = () => {
           </div>
         </div>
       )}
+      {toast && <Toast {...toast} onClose={() => setToast(null)} />}
     </div>
   );
-
 };
 
 export default StoreKatalog;

@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import {
   Smartphone, BarChart3, Package, Users, Store,
-  LayoutGrid, Search, Zap, Plus, LogOut, Key,
-  Clock, Trash2, X, ChevronRight, ArrowLeft,
-  CheckCircle2, RefreshCw, Bell, AlertCircle, TrendingDown, Printer, MapPin, Globe, Share2, Edit3, Check
+  LayoutGrid, Search, Zap, Plus, LogOut,
+  Clock, Trash2, ArrowLeft,
+  CheckCircle2, AlertCircle, TrendingDown, Printer, MapPin, Globe, Edit3, Check
 } from 'lucide-react';
 
 // Import Komponen
@@ -18,6 +18,7 @@ import HRDManagement from './components/HRDManagement';
 import StoreKatalog from './components/StoreKatalog';
 import Invoice from './components/Invoice';
 import MarketingLanding from './components/MarketingLanding';
+import { Skeleton, EmptyState, Toast, Breadcrumbs, BackToTop } from './components/UI';
 
 const App = () => {
   const [session, setSession] = useState(null);
@@ -26,14 +27,19 @@ const App = () => {
   const [services, setServices] = useState([]);
   const [stockLogs, setStockLogs] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All');
+  const [statusFilter] = useState('All');
   const [activeInvoice, setActiveInvoice] = useState(null);
   const [lowStockItems, setLowStockItems] = useState([]);
-  const [showPartPicker, setShowPartPicker] = useState(null); // Service ID for which we are picking parts
+  const [showPartPicker, setShowPartPicker] = useState(null);
   const [inventory, setInventory] = useState([]);
   const [pickerSearch, setPickerSearch] = useState('');
   const [editingCost, setEditingCost] = useState(null);
   const [tempCost, setTempCost] = useState('');
+  const [toast, setToast] = useState(null);
+
+  const showNotify = (message, type = 'success') => {
+    setToast({ message, type });
+  };
 
   // Fungsi ambil semua data terpusat
   const fetchAllData = React.useCallback(async (userId) => {
@@ -76,10 +82,9 @@ const App = () => {
   const handleSaveCost = async (id) => {
     const { error } = await supabase.from('services').update({ estimated_cost: Number(tempCost) }).eq('id', id);
     if (!error) {
-      setEditingCost(null);
-      if (session) fetchAllData(session.user.id);
+      showNotify("Nominal berhasil diperbarui");
     } else {
-      alert("Gagal update nominal: " + error.message);
+      showNotify("Gagal update nominal: " + error.message, 'error');
     }
   };
 
@@ -134,10 +139,6 @@ const App = () => {
     return () => window.removeEventListener('hashchange', handleHash);
   }, []);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setActiveModule('dashboard');
-  };
 
   const totalOmzet = services
     .filter(s => s.status === 'Done')
@@ -164,10 +165,28 @@ const App = () => {
     { id: 'tracking', icon: <Search />, title: "Tracking", color: "bg-orange-500", desc: "Cek status pelanggan" }
   ];
 
+  const navItems = [
+    { id: 'dashboard', icon: LayoutGrid },
+    { id: 'servis', icon: Clock },
+    { id: 'stok', icon: Package },
+    { id: 'laporan', icon: BarChart3 }
+  ];
+
   if (loading) return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center font-sans">
-      <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-      <p className="mt-4 text-sm font-bold text-slate-500">Menyinkronkan data...</p>
+    <div className="min-h-screen bg-white flex flex-col items-center justify-center p-10">
+      <div className="w-full max-w-sm space-y-8 animate-in fade-in zoom-in duration-700">
+        <div className="flex justify-center mb-10">
+          <div className="w-16 h-16 bg-blue-600 rounded-[2rem] flex items-center justify-center text-white shadow-2xl shadow-blue-200 animate-bounce">
+            <Zap size={32} fill="currentColor" />
+          </div>
+        </div>
+        <div className="space-y-4">
+          <Skeleton className="h-4 w-1/2 mx-auto" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-64 w-full rounded-[2.5rem]" />
+        </div>
+        <p className="text-center text-[10px] font-black text-slate-300 uppercase tracking-[0.4em]">ServixPro v4.0 • Booting Systems</p>
+      </div>
     </div>
   );
 
@@ -197,47 +216,95 @@ const App = () => {
     return <PublicStore onBack={() => setActiveModule('dashboard')} />;
   }
 
+  // Breadcrumb Logic
+  const getBreadcrumbs = () => {
+    const items = [{ label: 'Dashboard', onClick: activeModule !== 'Dashboard' ? () => setActiveModule('Dashboard') : null }];
+    if (activeModule !== 'Dashboard') {
+      items.push({ label: activeModule, onClick: null });
+    }
+    return items;
+  };
+
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans selection:bg-blue-100">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans selection:bg-blue-100 transition-colors pb-24 lg:pb-0">
+      {/* Global Utility Components */}
+      {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+      <BackToTop />
 
       {/* Navigasi Samping / Bawah */}
-      <nav className="fixed z-50 bottom-0 left-0 right-0 bg-white border-t border-slate-100 px-8 py-4 flex justify-between items-center lg:top-0 lg:left-0 lg:bottom-0 lg:w-24 lg:flex-col lg:border-r lg:border-t-0 lg:px-0 lg:py-10 shadow-sm">
-        <div className="hidden lg:flex mb-12 items-center justify-center w-12 h-12 bg-blue-600 rounded-2xl text-white shadow-lg shadow-blue-100"><Zap size={22} fill="currentColor" /></div>
-        <div className="flex justify-between w-full lg:flex-col lg:gap-10 lg:items-center">
-          <button onClick={() => setActiveModule('dashboard')} className={`flex flex-col items-center gap-1.5 ${activeModule === 'dashboard' ? 'text-blue-600' : 'text-slate-300'}`}><LayoutGrid size={24} /><span className="text-[9px] font-bold uppercase tracking-wider">Beranda</span></button>
-          <button onClick={() => setActiveModule('servis')} className={`flex flex-col items-center gap-1.5 ${activeModule === 'servis' ? 'text-blue-600' : 'text-slate-300'}`}><Clock size={24} /><span className="text-[9px] font-bold uppercase tracking-wider">Antrean</span></button>
-          <button onClick={() => setActiveModule('add-form')} className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-blue-100 active:scale-95 transition-all -mt-10 lg:mt-0"><Plus size={30} /></button>
-          <button onClick={() => setActiveModule('tracking')} className={`flex flex-col items-center gap-1.5 ${activeModule === 'tracking' ? 'text-blue-600' : 'text-slate-300'}`}><Search size={24} /><span className="text-[9px] font-bold uppercase tracking-wider">Cek</span></button>
-          <button onClick={handleLogout} className="flex flex-col items-center gap-1.5 text-slate-300"><LogOut size={24} /><span className="text-[9px] font-bold uppercase tracking-wider">Keluar</span></button>
+      <nav className="fixed z-50 bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-slate-100 px-6 py-4 flex justify-between items-center lg:top-0 lg:left-0 lg:bottom-0 lg:w-24 lg:flex-col lg:border-r lg:border-t-0 lg:px-0 lg:py-10 shadow-2xl lg:shadow-sm">
+        <div className="hidden lg:flex flex-col items-center mb-10">
+          <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-blue-200">
+            <Zap size={24} fill="currentColor" />
+          </div>
         </div>
+
+        <div className="flex w-full justify-around lg:flex-col lg:gap-6 lg:w-auto">
+          {navItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setActiveModule(item.id)}
+              className={`flex flex-col lg:flex-row items-center gap-2 p-3 lg:p-4 rounded-2xl transition-all relative group ${activeModule === item.id
+                ? 'text-blue-600 bg-blue-50 lg:bg-blue-600 lg:text-white lg:shadow-lg lg:shadow-blue-200'
+                : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                }`}
+            >
+              <item.icon size={22} strokeWidth={activeModule === item.id ? 2.5 : 2} />
+              <span className="text-[9px] lg:hidden font-black uppercase tracking-tighter">{item.id === 'Dashboard' ? 'Home' : item.id}</span>
+              {activeModule === item.id && (
+                <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-blue-600 rounded-full lg:hidden" />
+              )}
+            </button>
+          ))}
+        </div>
+
+        <button
+          onClick={() => supabase.auth.signOut()}
+          className="hidden lg:flex items-center justify-center p-4 rounded-2xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all mt-auto"
+          title="Logout"
+        >
+          <LogOut size={22} />
+        </button>
       </nav>
 
-      <div className="lg:ml-24 transition-all">
-        {/* Header Atas */}
-        <header className="bg-white/80 backdrop-blur-md border-b border-slate-100 px-8 py-6 sticky top-0 z-40">
-          <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">ServixPro <span className="text-blue-600 text-[10px] font-black bg-blue-50 px-2 py-1 rounded ml-1">V4.0</span></h1>
-            <div className="w-full md:max-w-2xl flex gap-3">
-              <div className="flex-1 relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
-                <input type="text" placeholder="Cari nota, unit, atau nama pelanggan..." className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 pl-12 pr-4 text-xs font-medium outline-none focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-              </div>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 text-xs font-bold text-slate-500 outline-none focus:bg-white transition-all"
-              >
-                <option value="All">Semua Status</option>
-                <option value="Pending">Pending</option>
-                <option value="Checking">Checking</option>
-                <option value="Working">Working</option>
-                <option value="Done">Done</option>
-              </select>
-            </div>
-          </div>
-        </header>
+      <div className="lg:ml-24 transition-all pb-32">
+        <main className="max-w-7xl mx-auto p-4 lg:p-10">
+          {activeModule !== 'Marketing' && <Breadcrumbs items={getBreadcrumbs()} />}
 
-        <main className="max-w-6xl mx-auto px-8 py-10 pb-32">
+          {/* Header Atas (Hanya Dashboard) */}
+          {activeModule === 'dashboard' && (
+            <header className="mb-10 animate-in fade-in slide-in-from-top-4 duration-700">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div>
+                  <h1 className="text-3xl font-black text-slate-800 tracking-tight italic">ServixPro <span className="text-blue-600">V4.0</span></h1>
+                  <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Sistem Manajemen Servis & Inventaris</p>
+                </div>
+                <button
+                  onClick={() => setActiveModule('add-form')}
+                  className="bg-blue-600 text-white px-8 py-4 rounded-[1.5rem] font-black text-xs uppercase tracking-widest shadow-2xl shadow-blue-200 hover:bg-blue-700 active:scale-95 transition-all flex items-center gap-3"
+                >
+                  <Plus size={18} strokeWidth={3} />
+                  Input Servis Baru
+                </button>
+              </div>
+            </header>
+          )}
+
+          {activeModule === 'dashboard' && (
+            <div className="mb-8 relative">
+              <div className="relative">
+                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                <input
+                  type="text"
+                  placeholder="Cari nota, unit, atau nama pelanggan..."
+                  className="w-full bg-white border-2 border-slate-50 rounded-[1.5rem] py-5 pl-16 pr-6 text-sm font-bold shadow-sm outline-none focus:border-blue-500 focus:ring-8 focus:ring-blue-500/5 transition-all"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
           {activeModule === 'dashboard' && (
             <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
               {/* Ringkasan Omzet */}
@@ -331,108 +398,120 @@ const App = () => {
                 <button onClick={() => setActiveModule('dashboard')} className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400"><ArrowLeft size={24} /></button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {filteredServices.map(s => (
-                  <div key={s.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-                    <div className="flex justify-between items-start mb-6">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-lg w-fit uppercase tracking-tighter">Nota #{s.id?.slice(0, 8)}</span>
-                        <h4 className="font-bold text-base text-slate-800">{s.unit_name}</h4>
-                        <div className="flex gap-2 items-center">
-                          <p className="text-[10px] text-slate-400 font-medium">Pemilik: <span className="text-slate-600 font-bold">{s.customer_name}</span></p>
-                          <span className="text-[8px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full uppercase">Teknisi: {s.technician_name || 'Umum'}</span>
+                {filteredServices.length > 0 ? (
+                  filteredServices.map(s => (
+                    <div key={s.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+                      <div className="flex justify-between items-start mb-6">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-lg w-fit uppercase tracking-tighter">Nota #{s.id?.slice(0, 8)}</span>
+                          <h4 className="font-bold text-base text-slate-800">{s.unit_name}</h4>
+                          <div className="flex gap-2 items-center">
+                            <p className="text-[10px] text-slate-400 font-medium">Pemilik: <span className="text-slate-600 font-bold">{s.customer_name}</span></p>
+                            <span className="text-[8px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full uppercase">Teknisi: {s.technician_name || 'Umum'}</span>
+                          </div>
                         </div>
+                        <div className={`px-4 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest ${s.status === 'Done' ? 'bg-emerald-100 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>{s.status}</div>
                       </div>
-                      <div className={`px-4 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest ${s.status === 'Done' ? 'bg-emerald-100 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>{s.status}</div>
-                    </div>
 
-                    <div className="bg-slate-50 p-4 rounded-2xl mb-6">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Keluhan Kerusakan</p>
-                      <p className="text-xs text-slate-600 italic leading-relaxed">"{s.issue}"</p>
+                      <div className="bg-slate-50 p-4 rounded-2xl mb-6">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Keluhan Kerusakan</p>
+                        <p className="text-xs text-slate-600 italic leading-relaxed">"{s.issue}"</p>
 
-                      {/* Customer & IMEI/SN Info */}
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed mt-4">
-                        {s.customer_name} • {s.customer_phone}
-                        {s.imei_sn && <span className="block text-blue-500 italic mt-0.5">SN/IMEI: {s.imei_sn}</span>}
-                      </p>
+                        {/* Customer & IMEI/SN Info */}
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed mt-4">
+                          {s.customer_name} • {s.customer_phone}
+                          {s.imei_sn && <span className="block text-blue-500 italic mt-0.5">SN/IMEI: {s.imei_sn}</span>}
+                        </p>
 
-                      {/* Spareparts Section */}
-                      <div className="mt-6 border-t border-slate-50 pt-6">
-                        <div className="flex justify-between items-center mb-4">
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Suku Cadang Terpasang</p>
-                          <button
-                            onClick={() => setShowPartPicker(s)}
-                            className="text-[10px] font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-lg hover:bg-blue-100 transition-colors"
-                          >
-                            + Tambah Part
-                          </button>
+                        {/* Spareparts Section */}
+                        <div className="mt-6 border-t border-slate-50 pt-6">
+                          <div className="flex justify-between items-center mb-4">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Suku Cadang Terpasang</p>
+                            <button
+                              onClick={() => setShowPartPicker(s)}
+                              className="text-[10px] font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-lg hover:bg-blue-100 transition-colors"
+                            >
+                              + Tambah Part
+                            </button>
+                          </div>
+
+                          <div className="space-y-2">
+                            {/* We simulate linked parts via stock_logs with reference_invoice = service.id */}
+                            {stockLogs.filter(log => log.reference_invoice === s.id).length > 0 ? (
+                              stockLogs.filter(log => log.reference_invoice === s.id).map((log, idx) => (
+                                <div key={idx} className="flex justify-between items-center bg-slate-50/50 p-2 rounded-xl text-[10px] font-bold">
+                                  <span className="text-slate-600">{log.spareparts?.name} (x{log.quantity})</span>
+                                  <span className="text-slate-400">Rp {(log.price_at_transaction * log.quantity).toLocaleString()}</span>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-[9px] text-slate-300 italic">Belum ada sparepart yang ditambahkan.</p>
+                            )}
+                          </div>
                         </div>
 
-                        <div className="space-y-2">
-                          {/* We simulate linked parts via stock_logs with reference_invoice = service.id */}
-                          {stockLogs.filter(log => log.reference_invoice === s.id).length > 0 ? (
-                            stockLogs.filter(log => log.reference_invoice === s.id).map((log, idx) => (
-                              <div key={idx} className="flex justify-between items-center bg-slate-50/50 p-2 rounded-xl text-[10px] font-bold">
-                                <span className="text-slate-600">{log.spareparts?.name} (x{log.quantity})</span>
-                                <span className="text-slate-400">Rp {(log.price_at_transaction * log.quantity).toLocaleString()}</span>
+                        <div className="flex items-center justify-between pt-6 border-t border-slate-50 mt-6">
+                          <div>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase">Estimasi Biaya</p>
+                            {editingCost === s.id ? (
+                              <div className="flex items-center gap-2 mt-1">
+                                <input
+                                  type="number"
+                                  value={tempCost}
+                                  onChange={(e) => setTempCost(e.target.value)}
+                                  className="w-24 bg-white border border-blue-200 rounded-lg px-2 py-1 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => handleSaveCost(s.id)}
+                                  className="p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                >
+                                  <Check size={14} />
+                                </button>
+                                <button
+                                  onClick={() => setEditingCost(null)}
+                                  className="p-1.5 bg-slate-100 text-slate-400 rounded-lg hover:bg-slate-200 transition-colors"
+                                >
+                                  <X size={14} />
+                                </button>
                               </div>
-                            ))
-                          ) : (
-                            <p className="text-[9px] text-slate-300 italic">Belum ada sparepart yang ditambahkan.</p>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between pt-6 border-t border-slate-50 mt-6">
-                        <div>
-                          <p className="text-[9px] font-bold text-slate-400 uppercase">Estimasi Biaya</p>
-                          {editingCost === s.id ? (
-                            <div className="flex items-center gap-2 mt-1">
-                              <input
-                                type="number"
-                                value={tempCost}
-                                onChange={(e) => setTempCost(e.target.value)}
-                                className="w-24 bg-white border border-blue-200 rounded-lg px-2 py-1 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100"
-                                autoFocus
-                              />
-                              <button
-                                onClick={() => handleSaveCost(s.id)}
-                                className="p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                              >
-                                <Check size={14} />
-                              </button>
-                              <button
-                                onClick={() => setEditingCost(null)}
-                                className="p-1.5 bg-slate-100 text-slate-400 rounded-lg hover:bg-slate-200 transition-colors"
-                              >
-                                <X size={14} />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              <p className="text-lg font-black text-slate-800">Rp {Number(s.estimated_cost).toLocaleString()}</p>
-                              <button
-                                onClick={() => {
-                                  setEditingCost(s.id);
-                                  setTempCost(s.estimated_cost);
-                                }}
-                                className="p-1.5 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-all"
-                              >
-                                <Edit3 size={14} />
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex gap-2">
-                          <button onClick={() => setActiveInvoice(s)} className="p-3 text-slate-300 hover:text-blue-500 transition-colors"><Printer size={20} /></button>
-                          <button onClick={() => { if (confirm('Hapus unit ini?')) { supabase.from('services').delete().eq('id', s.id).then(() => session && fetchAllData(session.user.id)); } }} className="p-3 text-slate-300 hover:text-rose-500 transition-colors"><Trash2 size={20} /></button>
-                          {s.status !== 'Done' && (
-                            <button onClick={() => updateStatus(s.id, s.status)} className="bg-slate-900 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase flex items-center gap-2 hover:bg-blue-600 transition-all shadow-lg shadow-slate-100">Update Status</button>
-                          )}
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <p className="text-lg font-black text-slate-800">Rp {Number(s.estimated_cost).toLocaleString()}</p>
+                                <button
+                                  onClick={() => {
+                                    setEditingCost(s.id);
+                                    setTempCost(s.estimated_cost);
+                                  }}
+                                  className="p-1.5 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-all"
+                                >
+                                  <Edit3 size={14} />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <button onClick={() => setActiveInvoice(s)} className="p-3 text-slate-300 hover:text-blue-500 transition-colors"><Printer size={20} /></button>
+                            <button onClick={() => { if (confirm('Hapus unit ini?')) { supabase.from('services').delete().eq('id', s.id).then(() => session && fetchAllData(session.user.id)); } }} className="p-3 text-slate-300 hover:text-rose-500 transition-colors"><Trash2 size={20} /></button>
+                            {s.status !== 'Done' && (
+                              <button onClick={() => updateStatus(s.id, s.status)} className="bg-slate-900 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase flex items-center gap-2 hover:bg-blue-600 transition-all shadow-lg shadow-slate-100">Update Status</button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="col-span-full">
+                    <EmptyState
+                      icon={Smartphone}
+                      title="Antrean Kosong"
+                      desc="Belum ada unit servis yang masuk hari ini. Mulai dengan membuat antrean baru."
+                      actionText="Buat Antrean"
+                      onAction={() => setActiveModule('add-form')}
+                    />
                   </div>
-                ))}
+                )}
               </div>
             </div>
           )}
@@ -542,7 +621,7 @@ const App = () => {
 
         </main>
       </div>
-    </div>
+    </div >
   );
 };
 

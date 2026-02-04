@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import {
     Search, MapPin, Smartphone, ShoppingCart,
-    ChevronRight, ArrowLeft, Loader2, Globe, Tag
+    ChevronRight, ArrowLeft, Loader2, Globe, Tag, MessageSquare
 } from 'lucide-react';
 
 const PublicStore = ({ onBack }) => {
@@ -200,6 +200,24 @@ const PublicStore = ({ onBack }) => {
                     Powered by ServixPro &copy; 2026
                 </p>
             </footer>
+
+            {/* Floating WhatsApp CTA */}
+            <div className="fixed bottom-8 right-8 z-[110] animate-in slide-in-from-bottom-10 duration-1000">
+                <a
+                    href="https://wa.me/628123456789?text=Halo%20ServixPro%2C%20saya%20ingin%20tanya%20seputar%20produk%20dan%20servis."
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-4 bg-emerald-500 text-white pl-6 pr-4 py-4 rounded-[2rem] shadow-2xl hover:bg-emerald-600 hover:scale-105 transition-all group active:scale-95"
+                >
+                    <div className="flex flex-col items-start leading-tight">
+                        <span className="text-[10px] font-black uppercase tracking-widest opacity-80">Ada Pertanyaan?</span>
+                        <span className="text-sm font-black">Chat Sekarang</span>
+                    </div>
+                    <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center animate-pulse">
+                        <MessageSquare size={24} fill="currentColor" />
+                    </div>
+                </a>
+            </div>
         </div>
     );
 };

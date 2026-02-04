@@ -4,6 +4,7 @@ import {
   Package, Plus, Minus, Search, MapPin,
   X, Loader2, Warehouse, History, FileSpreadsheet, AlertCircle, ShoppingCart
 } from 'lucide-react';
+import { Skeleton, EmptyState, Toast } from './UI';
 
 const StockManagement = () => {
   const [locations, setLocations] = useState([]);
@@ -11,7 +12,8 @@ const StockManagement = () => {
   const [parts, setParts] = useState([]);
   const [logs, setLogs] = useState([]);
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
@@ -80,7 +82,7 @@ const StockManagement = () => {
     const type = amount < 0 ? 'Keluar' : 'Masuk';
     let invoiceRef = "";
 
-    if (newQty < 0) return alert("Stok tidak mencukupi di lokasi ini!");
+    if (newQty < 0) return setToast({ message: "Stok tidak mencukupi!", type: 'error' });
 
     if (type === 'Keluar') {
       invoiceRef = prompt("Masukkan Nomor Invoice / Nama Pelanggan:", "INV-");
@@ -107,6 +109,7 @@ const StockManagement = () => {
         notes: type === 'Keluar' ? `Pemakaian servis (${invoiceRef})` : `Restock manual`
       }]);
 
+      setToast({ message: "Mutasi stok berhasil dicatat" });
       fetchPartsByLocation(selectedLocation.id);
       fetchStockLogs(session.user.id);
     }
@@ -149,11 +152,12 @@ const StockManagement = () => {
         notes: 'Stok awal barang baru'
       }]);
 
+      setToast({ message: "Barang baru berhasil terdaftar" });
       setShowAdd(false);
       fetchPartsByLocation(selectedLocation.id);
       setFormData({ name: '', category: 'LCD', price_buy: 0, price_sell: 0, initial_stock: 0 });
     } catch (err) {
-      alert(err.message);
+      setToast({ message: err.message, type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -239,7 +243,20 @@ const StockManagement = () => {
 
       {/* 2. GRID PRODUK */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredParts.length > 0 ? filteredParts.map(item => (
+        {loading ? (
+          [1, 2, 3, 4, 5, 6].map(i => (
+            <div key={i} className="bg-white p-6 rounded-[2.5rem] border border-slate-200">
+              <div className="flex justify-between mb-4">
+                <Skeleton className="h-4 w-12" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+              <Skeleton className="h-6 w-3/4 mb-6" />
+              <div className="bg-slate-50 p-4 rounded-3xl">
+                <Skeleton className="h-10 w-full" />
+              </div>
+            </div>
+          ))
+        ) : filteredParts.length > 0 ? filteredParts.map(item => (
           <div key={item.id} className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm hover:border-blue-500 transition-all group">
             <div className="flex justify-between items-start mb-4">
               <span className="text-[9px] font-bold bg-slate-50 text-slate-400 px-3 py-1 rounded-full uppercase">{item.category}</span>
@@ -261,9 +278,14 @@ const StockManagement = () => {
             </div>
           </div>
         )) : (
-          <div className="col-span-full py-20 text-center">
-            <Package className="mx-auto text-slate-200 mb-4" size={48} />
-            <p className="text-slate-400 font-medium italic">Barang tidak ditemukan atau stok kosong di lokasi ini.</p>
+          <div className="col-span-full">
+            <EmptyState
+              icon={Package}
+              title="Barang Tidak Ditemukan"
+              desc="Tidak ada sparepart di lokasi ini atau kategori ini. Tambahkan barang baru jika diperlukan."
+              actionText={isGudangPusat ? "Daftarkan Barang" : null}
+              onAction={isGudangPusat ? () => setShowAdd(true) : null}
+            />
           </div>
         )}
       </div>
@@ -374,6 +396,8 @@ const StockManagement = () => {
           </div>
         </div>
       )}
+      {/* Toast Notification */}
+      {toast && <Toast {...toast} onClose={() => setToast(null)} />}
     </div>
   );
 };

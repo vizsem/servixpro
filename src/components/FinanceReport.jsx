@@ -4,6 +4,7 @@ import {
   TrendingUp, TrendingDown, Wallet, PieChart,
   ArrowUpRight, Loader2, Printer, RefreshCw, Package, XCircle
 } from 'lucide-react';
+import { Skeleton, EmptyState } from './UI';
 
 const FinanceReport = () => {
   const [loading, setLoading] = useState(true);
@@ -94,9 +95,15 @@ const FinanceReport = () => {
   const handlePrint = () => window.print();
 
   if (loading) return (
-    <div className="flex flex-col items-center justify-center p-20 space-y-4">
-      <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
-      <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Menyusun Laporan...</p>
+    <div className="p-4 max-w-2xl mx-auto space-y-6">
+      <div className="flex justify-between items-center px-2">
+        <Skeleton className="h-8 w-40" />
+        <Skeleton className="h-10 w-64" />
+      </div>
+      <Skeleton className="h-64 w-full rounded-[2.5rem]" />
+      <div className="space-y-4">
+        {[1, 2, 3].map(i => <Skeleton key={i} className="h-20 w-full rounded-[2rem]" />)}
+      </div>
     </div>
   );
 
@@ -198,10 +205,11 @@ const FinanceReport = () => {
                 </div>
               </div>
             )) : (
-              <div className="p-10 text-center space-y-2">
-                <XCircle className="mx-auto text-slate-200" size={32} />
-                <p className="text-xs text-slate-400 italic font-medium">Belum ada data sparepart keluar.</p>
-              </div>
+              <EmptyState
+                icon={Package}
+                title="Log Stok Kosong"
+                desc="Tidak ada catatan pengeluaran sparepart untuk periode ini."
+              />
             )}
           </div>
         </div>
@@ -229,7 +237,13 @@ const FinanceReport = () => {
                 </div>
               </div>
             )) : (
-              <p className="p-10 text-center text-xs text-slate-400 font-medium">Tidak ada transaksi jasa.</p>
+              <div className="py-10">
+                <EmptyState
+                  icon={TrendingUp}
+                  title="Belum Ada Pendapatan"
+                  desc="Tidak ada unit servis yang selesai (Done) pada periode ini."
+                />
+              </div>
             )}
           </div>
         </div>

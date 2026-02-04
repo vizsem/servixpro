@@ -75,7 +75,11 @@ const HRDManagement = () => {
   }, [fetchCommissionData, techPercent]);
 
   useEffect(() => {
-    fetchSettings();
+    let isMounted = true;
+    (async () => {
+      if (isMounted) await fetchSettings();
+    })();
+    return () => { isMounted = false; };
   }, [fetchSettings]);
 
   const updateTechPercent = async () => {

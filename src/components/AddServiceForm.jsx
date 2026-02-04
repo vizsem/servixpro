@@ -5,8 +5,9 @@ import {
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import Invoice from './Invoice';
+import { Toast } from './UI';
 
-const AddServiceForm = ({ onComplete }) => {
+const AddServiceForm = ({ onComplete, onClose }) => {
   // 1. State Tunggal sesuai kolom Database Anda
   const [formData, setFormData] = useState({
     customer_name: '',
@@ -21,12 +22,12 @@ const AddServiceForm = ({ onComplete }) => {
 
   const [loading, setLoading] = useState(false);
   const [savedData, setSavedData] = useState(null);
-  const [errorMsg, setErrorMsg] = useState('');
+  const [toast, setToast] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setErrorMsg('');
+    setToast(null);
 
     try {
       // 2. Ambil Session User
@@ -74,7 +75,7 @@ const AddServiceForm = ({ onComplete }) => {
       }
     } catch (err) {
       console.error("Gagal simpan:", err.message);
-      setErrorMsg('Gagal simpan: ' + err.message);
+      setToast({ message: 'Gagal simpan: ' + err.message, type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -115,19 +116,16 @@ const AddServiceForm = ({ onComplete }) => {
         {/* Dekorasi Aksen */}
         <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-full -mr-10 -mt-10"></div>
 
+        <button onClick={onClose} className="absolute top-8 right-8 text-slate-400 hover:text-slate-900 transition-colors">
+          <X size={20} />
+        </button>
+
         <h2 className="text-xl font-black text-slate-800 mb-6 flex items-center gap-3">
           <div className="bg-blue-600 p-2 rounded-xl shadow-lg shadow-blue-200 text-white">
             <PenTool className="w-5 h-5" />
           </div>
           Input Servis Baru
         </h2>
-
-        {errorMsg && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-600">
-            <AlertCircle className="w-5 h-5 flex-shrink-0" />
-            <p className="text-xs font-bold leading-tight">{errorMsg}</p>
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Input Nama Pelanggan */}
@@ -252,6 +250,7 @@ const AddServiceForm = ({ onComplete }) => {
           </button>
         </form>
       </div>
+      {toast && <Toast {...toast} onClose={() => setToast(null)} />}
     </div>
   );
 };

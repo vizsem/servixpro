@@ -1,4 +1,19 @@
 @import "tailwindcss";
+
+@layer utilities {
+  .skeleton {
+    @apply bg-slate-100 animate-pulse rounded-xl;
+  }
+}
+
+.hidden-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hidden-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 @media print {
   body * {
     visibility: hidden;

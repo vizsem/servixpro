@@ -3,7 +3,8 @@ import {
     Zap, Smartphone, Package, BarChart3, Users,
     Search, Globe, TrendingDown, Check, ArrowRight,
     ShieldCheck, Clock, MessageSquare, Star,
-    Store, Layout, ChevronRight
+    Store, Layout, ChevronRight, AlertCircle, TrendingUp,
+    CheckCircle2, PlusCircle, Laptop, FileUp
 } from 'lucide-react';
 
 const MarketingLanding = ({ onLogin, onTrack, onCatalog }) => {
@@ -19,10 +20,18 @@ const MarketingLanding = ({ onLogin, onTrack, onCatalog }) => {
     ];
 
     const stores = [
-        { name: "iFixit Solo", owner: "Andi Saputra", products: "iPhone 13, iPad Pro, Macbook Air", rating: 4.9 },
-        { name: "Global Cell", owner: "Budi Jaya", products: "Samsung S23, Xiaomi 13T, Oppo Reno", rating: 4.8 },
-        { name: "Bintang Servis", owner: "Siska Putri", products: "LCD Original, Baterai High Cap, IC Power", rating: 5.0 }
+        { name: "iFixit Solo", owner: "Andi Saputra", products: "iPhone 13, iPad Pro, Macbook Air", rating: 4.9, comment: "Profit naik 40% sejak pakai ServixPro!" },
+        { name: "Global Cell", owner: "Budi Jaya", products: "Samsung S23, Xiaomi 13T, Oppo Reno", rating: 4.8, comment: "Kelola 3 cabang jadi super gampang." },
+        { name: "Bintang Servis", owner: "Siska Putri", products: "LCD Original, Baterai High Cap, IC Power", rating: 5.0, comment: "Pelanggan senang bisa cek status via WA." }
     ];
+
+    const painPoints = [
+        { title: "Catatan Berantakan", desc: "Nota kertas sering hilang atau terselip, buat pusing saat rekap.", icon: <FileUp className="text-rose-500" /> },
+        { title: "Stok Sering Bocor", desc: "Barang keluar tapi tidak tercatat, rugi jutaan tiap bulan.", icon: <TrendingUp className="text-rose-500" /> },
+        { title: "Komisi Teknisi Ribet", desc: "Hitung manual bagi hasil teknisi butuh waktu berjam-jam.", icon: <BarChart3 className="text-rose-500" /> },
+        { title: "Pelanggan Terus Tanya", desc: "Telepon & WA non-stop cuma tanya 'Unit saya sudah jadi?'.", icon: <MessageSquare className="text-rose-500" /> }
+    ];
+
 
     return (
         <div className="min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-blue-100 selection:text-blue-700">
@@ -57,10 +66,10 @@ const MarketingLanding = ({ onLogin, onTrack, onCatalog }) => {
                         <Star size={14} fill="currentColor" /> Gratis 6 Bulan Pertama
                     </div>
                     <h2 className="text-5xl md:text-7xl font-black tracking-tighter leading-[0.95] mb-8 bg-gradient-to-b from-slate-900 to-slate-700 bg-clip-text text-transparent italic">
-                        KELOLA TOKO SERVIS <br /> DENGAN <span className="text-blue-600 underline decoration-blue-200 underline-offset-8">SISTEM KELAS PRO.</span>
+                        PROFESIONALKAN <br /> USAHA SERVIS <span className="text-blue-600 underline decoration-blue-200 underline-offset-8">DENGAN OTOMASI.</span>
                     </h2>
                     <p className="text-slate-500 text-lg md:text-xl font-medium max-w-2xl mx-auto mb-12 leading-relaxed">
-                        Dari pantau omzet hingga bagi hasil teknisi, ServixPro membantu ribuan pemilik toko servis handphone & gadget mengelola bisnis mereka secara otomatis.
+                        Ubah cara mengelola toko servis Anda. Tinggalkan cara manual, beralih ke ekosistem digital yang dirancang khusus untuk Teknisi & Owner Toko Gadget.
                     </p>
                     <div className="flex flex-col md:flex-row gap-4 justify-center items-center">
                         <button
@@ -91,16 +100,77 @@ const MarketingLanding = ({ onLogin, onTrack, onCatalog }) => {
                 <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-emerald-400/10 blur-[100px] rounded-full"></div>
             </section>
 
-            {/* Trust Section */}
-            <section className="bg-white py-14 border-y border-slate-100 overflow-hidden">
+            {/* Pain Points vs Solution Section */}
+            <section className="py-32 px-6 bg-slate-50">
+                <div className="max-w-7xl mx-auto">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+                        <div>
+                            <h3 className="text-xs font-black text-rose-500 uppercase tracking-[0.4em] mb-4">The Problem</h3>
+                            <h2 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter italic mb-8">
+                                CAPEK DENGAN CARA <br /> <span className="text-rose-500">MANUAL YANG BERANTAKAN?</span>
+                            </h2>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                {painPoints.map((p, i) => (
+                                    <div key={i} className="bg-white p-6 rounded-3xl border-2 border-slate-100">
+                                        <div className="w-10 h-10 bg-rose-50 rounded-xl flex items-center justify-center mb-4">
+                                            {p.icon}
+                                        </div>
+                                        <h4 className="font-bold text-slate-800 mb-2">{p.title}</h4>
+                                        <p className="text-xs text-slate-400 leading-relaxed font-medium">{p.desc}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="bg-blue-600 rounded-[3rem] p-10 md:p-16 text-white shadow-2xl shadow-blue-200 relative overflow-hidden">
+                            <h3 className="text-xs font-black text-blue-200 uppercase tracking-[0.4em] mb-4">The Solution</h3>
+                            <h2 className="text-4xl font-black tracking-tighter italic mb-8">ServixPro Memberikan <br /> Kontrol Penuh.</h2>
+                            <ul className="space-y-6">
+                                {[
+                                    "Semua data digital, terpusat, dan aman di Cloud.",
+                                    "Manajemen stok real-time antar gudang & cabang.",
+                                    "Otomasi kalkulasi bagi hasil teknisi (HRD).",
+                                    "Portal pelanggan mandiri untuk tracking & katalog."
+                                ].map((text, i) => (
+                                    <li key={i} className="flex gap-4 items-start">
+                                        <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                                            <CheckCircle2 size={14} className="text-white" />
+                                        </div>
+                                        <p className="text-sm font-bold text-blue-50 leading-relaxed">{text}</p>
+                                    </li>
+                                ))}
+                            </ul>
+                            <button onClick={onLogin} className="mt-12 bg-white text-blue-600 px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-50 transition-all active:scale-95 shadow-lg">
+                                Beralih ke ServixPro Sekarang
+                            </button>
+                            <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-white/5 rounded-full blur-3xl"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Target Audience Section */}
+            <section className="py-32 bg-white border-y border-slate-100">
                 <div className="max-w-7xl mx-auto px-6">
-                    <p className="text-center text-[10px] font-black uppercase tracking-[0.4em] text-slate-300 mb-8">Dipercaya oleh pemilik toko di seluruh Indonesia</p>
-                    <div className="flex flex-wrap justify-center gap-10 md:gap-20 opacity-30 grayscale contrast-125">
-                        <div className="font-black text-2xl italic">APPLEFIX</div>
-                        <div className="font-black text-2xl italic">GALAXYCENTRE</div>
-                        <div className="font-black text-2xl italic">MACEPERT</div>
-                        <div className="font-black text-2xl italic">DOKTERHP</div>
-                        <div className="font-black text-2xl italic">GADGETLAB</div>
+                    <div className="text-center mb-20">
+                        <h3 className="text-xs font-black text-blue-600 uppercase tracking-[0.4em] mb-4">Siapa Penggunanya?</h3>
+                        <h2 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter italic">SOLUSI TEPAT UNTUK <br /> <span className="text-blue-600">BERBAGAI SKALA BISNIS.</span></h2>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+                        <div className="p-10 rounded-[2.5rem] bg-slate-50 border border-slate-100 hover:border-blue-200 transition-all">
+                            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm"><Smartphone className="text-blue-600" /></div>
+                            <h4 className="font-bold text-lg mb-2">Toko Servis Kecil</h4>
+                            <p className="text-sm text-slate-400 font-medium">Beralih dari buku nota ke sistem profesional tanpa biaya ribet.</p>
+                        </div>
+                        <div className="p-10 rounded-[2.5rem] bg-slate-50 border border-slate-100 hover:border-blue-200 transition-all">
+                            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm"><Users className="text-blue-600" /></div>
+                            <h4 className="font-bold text-lg mb-2">Pemilik Multi Cabang</h4>
+                            <p className="text-sm text-slate-400 font-medium">Kontrol stok, harga, dan teknisi di banyak lokasi dalam satu dashboard.</p>
+                        </div>
+                        <div className="p-10 rounded-[2.5rem] bg-slate-50 border border-slate-100 hover:border-blue-200 transition-all">
+                            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm"><Store className="text-blue-600" /></div>
+                            <h4 className="font-bold text-lg mb-2">Penyedia Suku Cadang</h4>
+                            <p className="text-sm text-slate-400 font-medium">Kelola inventori sparepart secara masif dan distribusikan ke reseller.</p>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -132,68 +202,117 @@ const MarketingLanding = ({ onLogin, onTrack, onCatalog }) => {
                 <div className="max-w-7xl mx-auto px-6 relative z-10">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
                         <div>
-                            <h3 className="text-xs font-black text-blue-400 uppercase tracking-[0.4em] mb-4">E-Katalog Showcase</h3>
-                            <h2 className="text-4xl md:text-6xl font-black tracking-tighter leading-none mb-8 italic">PUNYA WEBSITE TOKO <br /> <span className="text-blue-400">TANPA RIBET.</span></h2>
+                            <h3 className="text-xs font-black text-blue-400 uppercase tracking-[0.4em] mb-4">Produk Showcase</h3>
+                            <h2 className="text-4xl md:text-6xl font-black tracking-tighter leading-none mb-8 italic">PENGALAMAN DIGITAL <br /> <span className="text-blue-400">YANG PREMIUM.</span></h2>
                             <p className="text-slate-400 text-lg font-medium mb-12 leading-relaxed">
-                                Setiap akun mendapatkan link katalog publik otomatis. Pelanggan bisa cek harga LCD, baterai, atau part lainnya dari smartphone mereka sendiri.
+                                Antarmuka yang bersih, cepat, dan responsif. Dirancang untuk memudahkan pekerjaan harian Anda, bukan menambah beban.
                             </p>
-                            <div className="space-y-6">
-                                {stores.map((s, i) => (
-                                    <div key={i} className="flex gap-5 items-center bg-white/5 p-4 rounded-2xl border border-white/5 hover:bg-white/10 transition-all cursor-default">
-                                        <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center font-black italic shadow-lg shadow-blue-500/20 text-xs tracking-tighter">S{i + 1}</div>
-                                        <div>
-                                            <div className="flex items-center gap-2">
-                                                <h5 className="font-black text-sm">{s.name}</h5>
-                                                <div className="flex items-center gap-1 text-orange-400 text-[10px]">
-                                                    <Star size={10} fill="currentColor" /> {s.rating}
-                                                </div>
-                                            </div>
-                                            <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest mt-1">Owner: {s.owner}</p>
-                                        </div>
-                                        <div className="ml-auto hidden md:block">
-                                            <div className="text-[10px] text-emerald-400 font-black uppercase tracking-tighter bg-emerald-400/10 px-3 py-1 rounded-full">Active Store</div>
-                                        </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {[
+                                    { title: "Invoice Digital", desc: "Nota profesional kirim langsung ke WA." },
+                                    { title: "Statistik Pro", desc: "Analisis keuangan mendalam." },
+                                    { title: "Multi Cabang", desc: "Kontrol stok terpusat aman." },
+                                    { title: "Tracking Portal", desc: "Pelanggan cek status mandiri." }
+                                ].map((item, i) => (
+                                    <div key={i} className="bg-white/5 p-6 rounded-2xl border border-white/5">
+                                        <h5 className="font-bold text-blue-400 mb-1">{item.title}</h5>
+                                        <p className="text-xs text-slate-500">{item.desc}</p>
                                     </div>
                                 ))}
                             </div>
                         </div>
                         <div className="relative flex justify-center">
-                            <div className="w-full max-w-sm aspect-[9/16] bg-slate-800 rounded-[3rem] border-[10px] border-slate-700 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] overflow-hidden relative group">
-                                <div className="absolute top-0 inset-x-0 h-10 bg-slate-700 flex items-center justify-center">
+                            <div className="w-full max-w-sm aspect-[9/19] bg-slate-800 rounded-[3rem] border-[10px] border-slate-700 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] overflow-hidden relative group">
+                                <div className="absolute top-0 inset-x-0 h-10 bg-slate-700 flex items-center justify-center z-20">
                                     <div className="w-20 h-4 bg-slate-900 rounded-full"></div>
                                 </div>
-                                <div className="p-6 pt-14 h-full bg-slate-50">
-                                    <div className="w-10 h-10 bg-blue-600 rounded-lg mb-4"></div>
-                                    <div className="w-3/4 h-6 bg-slate-200 rounded mb-2"></div>
-                                    <div className="w-1/2 h-4 bg-slate-100 rounded mb-8"></div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        {[1, 2, 3, 4].map(n => (
-                                            <div key={n} className="aspect-square bg-white rounded-2xl border border-slate-100 p-2">
-                                                <div className="w-full h-2/3 bg-slate-50 rounded-lg mb-2"></div>
-                                                <div className="w-full h-2 bg-slate-100 rounded mb-1"></div>
-                                                <div className="w-1/2 h-2 bg-blue-100 rounded"></div>
+                                <div className="p-6 pt-14 h-full bg-slate-50 overflow-y-auto hidden-scrollbar">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <div className="w-8 h-8 bg-blue-600 rounded-lg"></div>
+                                        <div className="w-20 h-4 bg-slate-200 rounded-full"></div>
+                                    </div>
+                                    <div className="bg-white p-4 rounded-2xl shadow-sm mb-4 border border-slate-100">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Total Pemasukan</p>
+                                        <p className="text-2xl font-black text-slate-900">Rp 12,450,000</p>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Antrean Servis</p>
+                                        {[1, 2, 3].map(n => (
+                                            <div key={n} className="bg-white p-3 rounded-xl border border-slate-100 flex justify-between items-center">
+                                                <div>
+                                                    <p className="text-[10px] font-bold text-slate-800">iPhone 13 Pro</p>
+                                                    <p className="text-[8px] text-slate-400">Ganti LCD - In Progress</p>
+                                                </div>
+                                                <div className="w-2 h-2 rounded-full bg-orange-400"></div>
                                             </div>
                                         ))}
                                     </div>
+                                    <div className="mt-6">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Inventory</p>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {[1, 2, 3, 4].map(n => (
+                                                <div key={n} className="bg-white p-3 rounded-xl border border-slate-100 text-center">
+                                                    <div className="w-8 h-8 bg-slate-50 rounded-lg mx-auto mb-2"></div>
+                                                    <p className="text-[8px] font-bold">Sparepart</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="absolute inset-x-0 bottom-0 p-6 bg-gradient-to-t from-slate-900 to-transparent pt-20">
-                                    <div className="w-full bg-blue-600 py-3 rounded-xl text-center text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-blue-500 transition-all">Tanya Admin</div>
+                                <div className="absolute inset-x-0 bottom-0 p-6 bg-gradient-to-t from-slate-900 to-transparent pt-20 z-10">
+                                    <div className="w-full bg-blue-600 py-3 rounded-xl text-center text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-blue-500 transition-all flex items-center justify-center gap-2">
+                                        Demo Aplikasi <Zap size={10} fill="currentColor" />
+                                    </div>
                                 </div>
                             </div>
 
                             {/* Floatings */}
-                            <div className="absolute -right-8 top-1/4 bg-white text-slate-900 p-4 rounded-[1.5rem] shadow-2xl animate-bounce duration-[3s] hidden lg:block">
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">New Inquiry</p>
-                                <p className="text-xs font-black">"Stok LCD iP 11 ADA?"</p>
+                            <div className="absolute -right-8 top-1/4 bg-white text-slate-900 p-4 rounded-[1.5rem] shadow-2xl animate-bounce duration-[3s] hidden lg:block z-30">
+                                <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-1">New Order</p>
+                                <p className="text-xs font-black">"Request Ganti LCD iP 14"</p>
                             </div>
-                            <div className="absolute -left-12 bottom-1/4 bg-emerald-500 text-white p-4 rounded-[1.5rem] shadow-2xl animate-pulse duration-[2s] hidden lg:block">
-                                <p className="text-[9px] font-black opacity-70 uppercase tracking-widest mb-1">Success Transaction</p>
-                                <p className="text-xs font-black">RP 750,000 RECEIVED</p>
+                            <div className="absolute -left-12 bottom-1/4 bg-emerald-500 text-white p-4 rounded-[1.5rem] shadow-2xl animate-pulse duration-[2s] hidden lg:block z-30">
+                                <p className="text-[9px] font-black opacity-70 uppercase tracking-widest mb-1">Stock Update</p>
+                                <p className="text-xs font-black">+5 LCD Original Added</p>
                             </div>
                         </div>
                     </div>
                 </div>
                 <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-blue-500/20 blur-[150px] rounded-full"></div>
+            </section>
+
+            {/* Dedicated Testimonials Section */}
+            <section className="py-32 px-6">
+                <div className="max-w-7xl mx-auto">
+                    <div className="text-center mb-20">
+                        <h3 className="text-xs font-black text-blue-600 uppercase tracking-[0.4em] mb-4">Testimoni Owner</h3>
+                        <h2 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter italic">APA KATA MEREKA <br /> <span className="text-blue-600">SETELAH PAKAI SERVIXPRO?</span></h2>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        {stores.map((s, i) => (
+                            <div key={i} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 hover:border-blue-500 transition-all shadow-sm relative group overflow-hidden">
+                                <div className="absolute top-8 right-8 text-blue-600/10 group-hover:text-blue-600/20 transition-colors">
+                                    <MessageSquare size={60} fill="currentColor" />
+                                </div>
+                                <div className="flex items-center gap-1 text-orange-400 mb-6">
+                                    {[1, 2, 3, 4, 5].map(star => <Star key={star} size={14} fill="currentColor" />)}
+                                </div>
+                                <p className="text-lg font-bold text-slate-800 mb-8 leading-relaxed relative z-10 italic">
+                                    "{s.comment}"
+                                </p>
+                                <div className="flex items-center gap-4 mt-auto">
+                                    <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center font-black text-blue-600 italic">
+                                        {s.name.charAt(0)}
+                                    </div>
+                                    <div>
+                                        <h5 className="font-black text-sm text-slate-900">{s.owner}</h5>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{s.name}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </section>
 
             {/* Pricing Section */}
@@ -294,6 +413,24 @@ const MarketingLanding = ({ onLogin, onTrack, onCatalog }) => {
                     </div>
                 </div>
             </footer>
+
+            {/* Floating Lead Magnet CTA */}
+            <div className="fixed bottom-8 right-8 z-[110] animate-in slide-in-from-bottom-10 duration-1000">
+                <a
+                    href="https://wa.me/628123456789?text=Halo%20Admin%2C%20saya%20tertarik%20pakai%20ServixPro%20untuk%20toko%20saya."
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-4 bg-emerald-500 text-white pl-6 pr-4 py-4 rounded-[2rem] shadow-2xl hover:bg-emerald-600 hover:scale-105 transition-all group active:scale-95"
+                >
+                    <div className="flex flex-col items-start leading-tight">
+                        <span className="text-[10px] font-black uppercase tracking-widest opacity-80">Ada Pertanyaan?</span>
+                        <span className="text-sm font-black">Chat Admin Sekarang</span>
+                    </div>
+                    <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center animate-pulse">
+                        <MessageSquare size={24} fill="currentColor" />
+                    </div>
+                </a>
+            </div>
         </div>
     );
 };
