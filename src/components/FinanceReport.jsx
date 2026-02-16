@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import { useAuth } from '../context/AuthContext';
 import {
   TrendingUp, TrendingDown, Wallet, PieChart,
-  ArrowUpRight, Loader2, Printer, RefreshCw, Package, XCircle
+  Printer, RefreshCw, Package
 } from 'lucide-react';
 import { Skeleton, EmptyState } from './UI';
+import { SERVICE_STATUS, TRANSACTION_TYPES } from '../constants';
 
 const FinanceReport = () => {
+  const { session } = useAuth();
   const [loading, setLoading] = useState(true);
   const [dataServis, setDataServis] = useState([]);
   const [dataStockLogs, setDataStockLogs] = useState([]);
@@ -24,7 +27,6 @@ const FinanceReport = () => {
   const fetchFinanceData = React.useCallback(async () => {
     try {
       setLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
       // 1. Ambil Data Pemasukan (Servis Selesai)
@@ -32,7 +34,7 @@ const FinanceReport = () => {
         .from('services')
         .select('unit_name, customer_name, estimated_cost, created_at, status')
         .eq('user_id', session.user.id)
-        .eq('status', 'Done')
+        .eq('status', SERVICE_STATUS.DONE)
         .gte('created_at', `${dateRange.start}T00:00:00`)
         .lte('created_at', `${dateRange.end}T23:59:59`)
         .order('created_at', { ascending: false });
@@ -40,16 +42,14 @@ const FinanceReport = () => {
       if (sError) throw sError;
 
       // 2. Ambil Data Log Stok Keluar (Modal)
-      // Pastikan relasi spareparts(name, price_buy) sudah benar di database
-      // Ganti bagian query stock_logs dengan ini
       const { data: logs, error: lError } = await supabase
         .from('stock_logs')
         .select('*, spareparts(price_buy, name)')
-        .eq('user_id', session.user.id) // Keep user_id filter
-        .eq('type', 'Keluar')
+        .eq('user_id', session.user.id) 
+        .eq('type', TRANSACTION_TYPES.OUT)
         .gte('created_at', `${dateRange.start}T00:00:00`)
         .lte('created_at', `${dateRange.end}T23:59:59`)
-        .order('created_at', { ascending: false }); // Keep order clause
+        .order('created_at', { ascending: false });
 
       if (lError) throw lError;
 
@@ -57,10 +57,10 @@ const FinanceReport = () => {
       const { data: expData, error: expError } = await supabase
         .from('expenses')
         .select('*')
-        .eq('user_id', session.user.id) // Add user_id filter
+        .eq('user_id', session.user.id)
         .gte('date', dateRange.start)
         .lte('date', dateRange.end)
-        .order('date', { ascending: false }); // Add order clause
+        .order('date', { ascending: false });
 
       if (expError) throw expError;
 
@@ -86,7 +86,7 @@ const FinanceReport = () => {
     } finally {
       setLoading(false);
     }
-  }, [dateRange]);
+  }, [dateRange, session]);
 
   useEffect(() => {
     fetchFinanceData();

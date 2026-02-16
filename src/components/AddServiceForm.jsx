@@ -29,6 +29,23 @@ const AddServiceForm = ({ onComplete, onClose }) => {
     setLoading(true);
     setToast(null);
 
+    // Validation
+    if (formData.customer_name.length < 3) {
+      setToast({ message: 'Nama pelanggan minimal 3 karakter', type: 'error' });
+      setLoading(false);
+      return;
+    }
+    if (formData.customer_phone.length < 10 || !/^\d+$/.test(formData.customer_phone)) {
+      setToast({ message: 'Nomor WhatsApp tidak valid (minimal 10 digit angka)', type: 'error' });
+      setLoading(false);
+      return;
+    }
+    if (parseInt(formData.estimated_cost) < 0) {
+      setToast({ message: 'Estimasi biaya tidak boleh negatif', type: 'error' });
+      setLoading(false);
+      return;
+    }
+
     try {
       // 2. Ambil Session User
       const { data: { session } } = await supabase.auth.getSession();

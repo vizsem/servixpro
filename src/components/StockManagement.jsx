@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import { useAuth } from '../context/AuthContext';
 import {
   Package, Plus, Minus, Search, MapPin,
-  X, Loader2, Warehouse, History, FileSpreadsheet, AlertCircle, ShoppingCart
+  X, Loader2, Warehouse, History, FileSpreadsheet
 } from 'lucide-react';
 import { Skeleton, EmptyState, Toast } from './UI';
+import { SPAREPART_CATEGORIES, TRANSACTION_TYPES } from '../constants';
 
 const StockManagement = () => {
+  const { session } = useAuth();
   const [locations, setLocations] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [parts, setParts] = useState([]);
@@ -18,7 +21,7 @@ const StockManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     name: '',
-    category: 'LCD',
+    category: SPAREPART_CATEGORIES[0],
     price_buy: 0,
     price_sell: 0,
     initial_stock: 0
@@ -28,7 +31,6 @@ const StockManagement = () => {
 
   const fetchPartsByLocation = React.useCallback(async (locId) => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
       // Ambil Semua Produk di Katalog & Inventory di Lokasi ini secara paralel
@@ -50,7 +52,7 @@ const StockManagement = () => {
     } catch (err) {
       console.error("Gagal sinkronisasi stok:", err.message);
     }
-  }, []);
+  }, [session]);
 
   const fetchStockLogs = React.useCallback(async (userId) => {
     const { data } = await supabase.from('stock_logs').select(`*, spareparts(name), locations(name)`).eq('user_id', userId).order('created_at', { ascending: false }).limit(20);
@@ -59,7 +61,7 @@ const StockManagement = () => {
 
   const fetchInitialData = React.useCallback(async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
       const { data: locData } = await supabase.from('locations').select('*').eq('user_id', session.user.id);
       setLocations(locData || []);
       if (locData?.length > 0) {
@@ -72,24 +74,24 @@ const StockManagement = () => {
     } finally {
       setLoading(false);
     }
-  }, [fetchPartsByLocation, fetchStockLogs]);
+  }, [session, fetchPartsByLocation, fetchStockLogs]);
 
 
   useEffect(() => { fetchInitialData(); }, [fetchInitialData]);
 
   const handleTransaction = async (item, amount) => {
     const newQty = item.stock_at_location + amount;
-    const type = amount < 0 ? 'Keluar' : 'Masuk';
+    const type = amount < 0 ? TRANSACTION_TYPES.OUT : TRANSACTION_TYPES.IN;
     let invoiceRef = "";
 
     if (newQty < 0) return setToast({ message: "Stok tidak mencukupi!", type: 'error' });
 
-    if (type === 'Keluar') {
+    if (type === TRANSACTION_TYPES.OUT) {
       invoiceRef = prompt("Masukkan Nomor Invoice / Nama Pelanggan:", "INV-");
       if (!invoiceRef) return; // Batalkan jika tidak diisi
     }
 
-    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
 
     // 1. Update Stok di Lokasi
     const { error: invError } = await supabase.from('location_inventory').upsert({
@@ -106,7 +108,7 @@ const StockManagement = () => {
         quantity: Math.abs(amount),
         price_at_transaction: item.price_sell, // Simpan harga jual saat transaksi
         reference_invoice: invoiceRef,
-        notes: type === 'Keluar' ? `Pemakaian servis (${invoiceRef})` : `Restock manual`
+        notes: type === TRANSACTION_TYPES.OUT ? `Pemakaian servis (${invoiceRef})` : `Restock manual`
       }]);
 
       setToast({ message: "Mutasi stok berhasil dicatat" });
@@ -119,7 +121,7 @@ const StockManagement = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
 
       // 1. Tambah ke spareparts
       const { data: part, error: pError } = await supabase
@@ -147,7 +149,7 @@ const StockManagement = () => {
         user_id: session.user.id,
         product_id: part.id,
         location_id: selectedLocation.id,
-        type: 'Masuk',
+        type: TRANSACTION_TYPES.IN,
         quantity: formData.initial_stock,
         notes: 'Stok awal barang baru'
       }]);
@@ -155,7 +157,7 @@ const StockManagement = () => {
       setToast({ message: "Barang baru berhasil terdaftar" });
       setShowAdd(false);
       fetchPartsByLocation(selectedLocation.id);
-      setFormData({ name: '', category: 'LCD', price_buy: 0, price_sell: 0, initial_stock: 0 });
+      setFormData({ name: '', category: SPAREPART_CATEGORIES[0], price_buy: 0, price_sell: 0, initial_stock: 0 });
     } catch (err) {
       setToast({ message: err.message, type: 'error' });
     } finally {
@@ -364,12 +366,7 @@ const StockManagement = () => {
                 <div>
                   <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Kategori</label>
                   <select value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })} className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-6 text-sm outline-none">
-                    <option>LCD</option>
-                    <option>Baterai</option>
-                    <option>Konektor</option>
-                    <option>IC</option>
-                    <option>Alat Kerja</option>
-                    <option>Aksesoris</option>
+                    {SPAREPART_CATEGORIES.map(cat => <option key={cat}>{cat}</option>)}
                   </select>
                 </div>
                 <div>
