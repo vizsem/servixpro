@@ -407,7 +407,7 @@ const MarketingLanding = ({ onLogin, onTrack, onCatalog }) => {
                         <button onClick={onTrack} title="Lacak Status Servis" className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all cursor-pointer">
                             <Clock size={18} />
                         </button>
-                        <a href="https://wa.me/628123456789" target="_blank" rel="noopener noreferrer" title="Hubungi WhatsApp Admin" className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all cursor-pointer">
+                        <a href="https://wa.me/6285790565666" target="_blank" rel="noopener noreferrer" title="Hubungi WhatsApp Admin" className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all cursor-pointer">
                             <Smartphone size={18} />
                         </a>
                     </div>
@@ -417,7 +417,7 @@ const MarketingLanding = ({ onLogin, onTrack, onCatalog }) => {
             {/* Floating Lead Magnet CTA */}
             <div className="fixed bottom-8 right-8 z-[110] animate-in slide-in-from-bottom-10 duration-1000">
                 <a
-                    href="https://wa.me/628123456789?text=Halo%20Admin%2C%20saya%20tertarik%20pakai%20ServixPro%20untuk%20toko%20saya."
+                    href="https://wa.me/6285790565666?text=Halo%20Admin%2C%20saya%20tertarik%20pakai%20ServixPro%20untuk%20toko%20saya."
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-4 bg-emerald-500 text-white pl-6 pr-4 py-4 rounded-[2rem] shadow-2xl hover:bg-emerald-600 hover:scale-105 transition-all group active:scale-95"

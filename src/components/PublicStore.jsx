@@ -69,7 +69,7 @@ const PublicStore = ({ onBack }) => {
                         </div>
                     </div>
                     <a
-                        href="https://wa.me/628123456789"
+                        href="https://wa.me/6285790565666"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="hidden md:flex items-center gap-2 bg-emerald-50 text-emerald-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-emerald-100 transition-all border border-emerald-100"

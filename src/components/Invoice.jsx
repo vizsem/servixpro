@@ -50,7 +50,7 @@ const Invoice = ({ data, onBack }) => {
         <button onClick={() => window.print()} className="flex-1 bg-slate-900 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg">
           <Printer className="w-5 h-5" /> Cetak Nota
         </button>
-        <button onClick={sendWhatsApp} className="bg-emerald-500 text-white p-3 rounded-2xl shadow-lg shadow-emerald-200">
+        <button onClick={sendWhatsApp} className="bg-emerald-500 text-white p-3 rounded-2xl shadow-lg shadow-emerald-200" title="Kirim via WhatsApp">
           <MessageCircle className="w-6 h-6" />
         </button>
       </div>
